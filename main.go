@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	"image/png"
@@ -12,30 +13,40 @@ import (
 
 func main() {
 
+	widthF := flag.Int("width", 600, "output width")
+	heightF := flag.Int("height", 400, "output height")
+	raysPerPxF := flag.Int("rays", 16, "sample rays per pixel")
+	flag.Parse()
+
+	width := *widthF
+	height := *heightF
+	raysPerPx := *raysPerPxF
+
 	// rand.Seed(time.Now().UnixNano())
 
-	const width = 600
-	const height = 400
+	// const width = 600
+	// const height = 400
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	var filmWidth, filmHeight, scale Float
 	if width >= height {
 		filmWidth = 300
 		filmHeight = filmWidth * (Float(height) / Float(width))
-		scale = filmWidth / width
+		scale = filmWidth / Float(width)
 	} else {
 		filmHeight = 300
 		filmWidth = filmHeight * (Float(width) / Float(height))
-		scale = filmHeight / height
+		scale = filmHeight / Float(height)
 	}
 
 	focal := V3{-100, 0, 0}
 
-	const raysPerPx = 16
+	// const raysPerPx = 128
 	const bounces = 4
 
 	geoms := Scene()
 
+	fmt.Printf("%d x %d image, %d samples per px\n", width, height, raysPerPx)
 	fmt.Println("Beginning render")
 	start := time.Now()
 
@@ -54,10 +65,13 @@ func main() {
 			}
 			img.Set(c, r, V3ToColor(color.Mul(1/Float(raysPerPx))))
 		}
+		fmt.Printf("Rendering... %.1f%%              \r", 100*Float(r)/Float(height))
 	}
 
+	took := time.Since(start).Seconds()
 	fmt.Println("Render complete. Writing to output.png")
-	fmt.Println("Took:", time.Since(start).Seconds(), "s")
+	fmt.Printf("Took: %.2f s\n", took)
+	fmt.Printf("Sec/Sample: %.5f ms\n", 1000*took/Float(width*height*raysPerPx))
 
 	file, err := os.Create("output.png")
 	if err != nil {
@@ -134,6 +148,23 @@ func Scene() []Geometry {
 			Mat: Material{
 				Col:         V3{1, 1, 0.75},
 				Specularity: 0.95},
+		},
+
+		// low semi-mirror ball
+		Sphere{
+			Center: V3{200, -100, -100},
+			Radius: Float(100),
+			Mat: Material{
+				Col:         V3{0.7, 0.7, 1},
+				Specularity: 0.65},
+		},
+
+		// high mirror ball
+		Sphere{
+			Center: V3{700, 300, -175},
+			Radius: Float(80),
+			Mat: Material{
+				Emit: V3{5, 1, 5}},
 		},
 	}
 }
