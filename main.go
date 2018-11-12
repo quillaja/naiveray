@@ -7,9 +7,12 @@ import (
 	"image/png"
 	"math/rand"
 	"os"
+	"time"
 )
 
 func main() {
+
+	// rand.Seed(time.Now().UnixNano())
 
 	const width = 600
 	const height = 400
@@ -28,12 +31,13 @@ func main() {
 
 	focal := V3{-100, 0, 0}
 
-	const raysPerPx = 8
+	const raysPerPx = 16
 	const bounces = 4
 
 	geoms := Scene()
 
 	fmt.Println("Beginning render")
+	start := time.Now()
 
 	for r := 0; r < height; r++ {
 		for c := 0; c < width; c++ {
@@ -45,13 +49,15 @@ func main() {
 				x := filmWidth/2 - (scale * (Float(c) + xJit))
 				rayD := V3{0, x, y}.Sub(focal).Normalize()
 				ray := Ray{Orig: focal, Dir: rayD}
-				color.Add(ShootRay(ray, geoms, bounces))
+				sample := ShootRay(ray, geoms, bounces)
+				color = color.Add(sample)
 			}
-			img.Set(c, r, V3ToColor(color.Mul(1/raysPerPx)))
+			img.Set(c, r, V3ToColor(color.Mul(1/Float(raysPerPx))))
 		}
 	}
 
 	fmt.Println("Render complete. Writing to output.png")
+	fmt.Println("Took:", time.Since(start).Seconds(), "s")
 
 	file, err := os.Create("output.png")
 	if err != nil {
@@ -119,6 +125,15 @@ func Scene() []Geometry {
 			Mat: Material{
 				Col:         V3{1, 0.2, 0.2},
 				Specularity: 0.5},
+		},
+
+		// high mirror ball
+		Sphere{
+			Center: V3{150, 100, 100},
+			Radius: Float(100),
+			Mat: Material{
+				Col:         V3{1, 1, 0.75},
+				Specularity: 0.95},
 		},
 	}
 }
