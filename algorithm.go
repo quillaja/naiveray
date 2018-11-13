@@ -10,6 +10,7 @@ import (
 )
 
 type JobQueue chan RenderJob
+type Report chan int
 
 type RenderJob struct {
 	Bounds image.Rectangle
@@ -22,32 +23,36 @@ type RenderJob struct {
 type RenderParams struct {
 	SamplesPerPix int
 	MaxBounces    int
+	ChunkSize     int
 }
 
-var DefaultRenderParams = &RenderParams{SamplesPerPix: 16, MaxBounces: 4}
+func DefaultRenderParams() RenderParams {
+	return RenderParams{
+		SamplesPerPix: 16,
+		MaxBounces:    4,
+		ChunkSize:     32}
+}
 
-func Render(scene []Geometry, cam *Camera, img *image.RGBA, params *RenderParams) {
-	// divide img into chunks (RenderJobs)
-	// and put jobs in queue
+func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams) {
 
-	const div = 10 // TODO: make better way of dividing image into chunks
-	queue := make(JobQueue, div*div)
+	chunkSize := params.ChunkSize
 
-	dy := img.Bounds().Dy() / div
-	dx := img.Bounds().Dx() / div
-	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y += dy {
-		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x += dx {
+	hPieces := math.Ceil(float64(img.Bounds().Dx()) / float64(chunkSize))
+	vPieces := math.Ceil(float64(img.Bounds().Dy()) / float64(chunkSize))
+	totalPieces := int(hPieces * vPieces)
 
-			job := RenderJob{
-				Bounds: image.Rect(x, y, x+dx, y+dy),
-				Params: params,
-				Geoms:  scene,
-				Cam:    cam,
-				Img:    img}
+	queue := make(JobQueue, totalPieces)
+	progress := make(Report, totalPieces) // semi-arbitrary chan length
 
-			queue <- job
+	// progress reporter
+	go func() {
+		done := 0
+		fmt.Printf("Rendered chunk %d of %d        \r", done, totalPieces)
+		for p := range progress {
+			done += p
+			fmt.Printf("Rendered chunk %d of %d        \r", done, totalPieces) //100*Float(done)/Float(total))
 		}
-	}
+	}()
 
 	//spawn workers
 	workers := runtime.NumCPU()
@@ -56,36 +61,64 @@ func Render(scene []Geometry, cam *Camera, img *image.RGBA, params *RenderParams
 
 	for w := 0; w < workers; w++ {
 		go func() {
-			RenderWorker(queue)
+			RenderWorker(queue, progress)
 			wg.Done()
 		}()
+	}
+
+	// divide img into chunks (RenderJobs)
+	// and put jobs in queue
+	// dy := img.Bounds().Dy() / div
+	// dx := img.Bounds().Dx() / div
+	for y := 0; y < img.Bounds().Max.Y; y += chunkSize {
+		for x := 0; x < img.Bounds().Max.X; x += chunkSize {
+
+			job := RenderJob{
+				Bounds: image.Rect(x, y, x+chunkSize, y+chunkSize),
+				Params: &params,
+				Geoms:  scene,
+				Cam:    cam,
+				Img:    img}
+
+			queue <- job
+		}
 	}
 
 	// wait for workers to complete
 	close(queue)
 	wg.Wait()
+	close(progress)
 }
 
-func RenderWorker(jobs JobQueue) {
+func RenderWorker(jobs JobQueue, prog Report) {
 	for job := range jobs {
 		RenderChunk(job)
+		prog <- 1
 	}
 }
 
 func RenderChunk(job RenderJob) {
+	imgBounds := job.Img.Bounds()
 	for r := job.Bounds.Min.Y; r < job.Bounds.Max.Y; r++ {
 		for c := job.Bounds.Min.X; c < job.Bounds.Max.X; c++ {
-			color := V3{0, 0, 0}
-			for count := 0; count < job.Params.SamplesPerPix; count++ {
-				yJit := Float(rand.Float64())*2 - 1 // [-0.5, 0.5)
-				xJit := Float(rand.Float64())*2 - 1
-				ray := job.Cam.GetRay(Float(c)+xJit, Float(r)+yJit)
-				sample := ShootRay(ray, job.Geoms, job.Params.MaxBounces)
-				color = color.Add(sample)
+			if isIn(c, r, imgBounds) {
+				color := V3{0, 0, 0}
+				for count := 0; count < job.Params.SamplesPerPix; count++ {
+					yJit := Float(rand.Float64())*2 - 1 // [-0.5, 0.5)
+					xJit := Float(rand.Float64())*2 - 1
+					ray := job.Cam.GetRay(Float(c)+xJit, Float(r)+yJit)
+					sample := ShootRay(ray, job.Geoms, job.Params.MaxBounces)
+					color = color.Add(sample)
+				}
+				job.Img.Set(c, r, V3ToColor(color.Mul(1/Float(job.Params.SamplesPerPix))))
 			}
-			job.Img.Set(c, r, V3ToColor(color.Mul(1/Float(job.Params.SamplesPerPix))))
 		}
 	}
+}
+
+func isIn(c, r int, bound image.Rectangle) bool {
+	return bound.Min.X <= c && c < bound.Max.X &&
+		bound.Min.Y <= r && r < bound.Max.Y
 }
 
 ///////////////////////////////////////////////////////////////

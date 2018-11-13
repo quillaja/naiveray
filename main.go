@@ -19,6 +19,7 @@ func main() {
 	heightF := flag.Int("height", 200, "output height")
 	raysPerPxF := flag.Int("rays", 16, "sample rays per pixel")
 	bouncesF := flag.Int("bounces", 4, "max bounces per path")
+	chunkSizeF := flag.Int("chunk", 32, "square chunk size for render chunk")
 	fovF := flag.Float64("fov", 115.0, "field of view in degrees of widest part")
 	xposF := flag.Float64("xpos", -200, "")
 	flag.Parse()
@@ -40,12 +41,16 @@ func main() {
 	fmt.Println("Beginning render")
 	start := time.Now()
 
-	Render(geoms, cam, img, &RenderParams{SamplesPerPix: raysPerPx, MaxBounces: bounces})
+	Render(geoms, cam, img,
+		RenderParams{
+			SamplesPerPix: raysPerPx,
+			MaxBounces:    bounces,
+			ChunkSize:     *chunkSizeF})
 
 	took := time.Since(start).Seconds()
 	fmt.Println("Render complete. Writing to output.png")
 	fmt.Printf("Took: %.2f s\n", took)
-	fmt.Printf("Sec/Sample: %.5f ms\n", 1000*took/Float(width*height*raysPerPx))
+	fmt.Printf("Time/Sample: %.5f ms\n", 1000*took/Float(width*height*raysPerPx))
 
 	file, err := os.Create("output.png")
 	if err != nil {
