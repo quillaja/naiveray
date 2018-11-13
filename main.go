@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -13,8 +14,8 @@ import (
 
 func main() {
 
-	widthF := flag.Int("width", 600, "output width")
-	heightF := flag.Int("height", 400, "output height")
+	widthF := flag.Int("width", 300, "output width")
+	heightF := flag.Int("height", 200, "output height")
 	raysPerPxF := flag.Int("rays", 16, "sample rays per pixel")
 	flag.Parse()
 
@@ -28,18 +29,20 @@ func main() {
 	// const height = 400
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
-	var filmWidth, filmHeight, scale Float
-	if width >= height {
-		filmWidth = 300
-		filmHeight = filmWidth * (Float(height) / Float(width))
-		scale = filmWidth / Float(width)
-	} else {
-		filmHeight = 300
-		filmWidth = filmHeight * (Float(width) / Float(height))
-		scale = filmHeight / Float(height)
-	}
+	// var filmWidth, filmHeight, scale Float
+	// if width >= height {
+	// 	filmWidth = 300
+	// 	filmHeight = filmWidth * (Float(height) / Float(width))
+	// 	scale = filmWidth / Float(width)
+	// } else {
+	// 	filmHeight = 300
+	// 	filmWidth = filmHeight * (Float(width) / Float(height))
+	// 	scale = filmHeight / Float(height)
+	// }
 
-	focal := V3{-100, 0, 0}
+	// focal := V3{-100, 0, 0}
+
+	cam := NewCamera(V3{-75, 0, 0}, V3{0, 0, 0}, V3{0, 0, 1}, math.Pi*(115.0/180.0), width, height)
 
 	// const raysPerPx = 128
 	const bounces = 4
@@ -56,10 +59,7 @@ func main() {
 			for count := 0; count < raysPerPx; count++ {
 				yJit := Float(rand.Float64())*2 - 1
 				xJit := Float(rand.Float64())*2 - 1
-				y := filmHeight/2 - (scale * (Float(r) + yJit))
-				x := filmWidth/2 - (scale * (Float(c) + xJit))
-				rayD := V3{0, x, y}.Sub(focal).Normalize()
-				ray := Ray{Orig: focal, Dir: rayD}
+				ray := cam.GetRay(Float(c)+xJit, Float(r)+yJit)
 				sample := ShootRay(ray, geoms, bounces)
 				color = color.Add(sample)
 			}

@@ -6,18 +6,23 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/go-gl/mathgl/mgl64"
+	mgl "github.com/go-gl/mathgl/mgl64"
 )
 
 const epsilon = 0.0001
 
+// Below aliases are to make it easy to switch between 32 and 64 bit floats
+
 // V3 is a 3d vector.
-type V3 = mgl64.Vec3
+type V3 = mgl.Vec3
+
+// M4 is a 4x4 matrix.
+type M4 = mgl.Mat4
 
 // Float is a floating point number
 type Float = float64
 
-// Hit represents an intersection between a Ray and a Geom.
+// Hit represents an intersection between a Ray and a Geometry.
 type Hit struct {
 	Point  V3       // point of intersection
 	Normal V3       // surface normal of hit geometry
@@ -224,4 +229,75 @@ func clamp(n, min, max Float) Float {
 		return max
 	}
 	return n
+}
+
+/////////////////////////////////////////////////////////////////
+
+// LookAt returns a camera-to-world 4x4 transformation matrix
+func LookAt(camPos, lookPt, camUp V3) M4 {
+	// supposedly this does the same thing as the inverse of the mgl.LookAt()
+	// dir := lookPt.Sub(camPos).Normalize()
+	// left := camUp.Normalize().Cross(dir).Normalize()
+	// newUp := dir.Cross(left)
+	// return M4{
+	// 	left.X(), newUp.X(), dir.X(), camPos.X(),
+	// 	left.Y(), newUp.Y(), dir.Y(), camPos.Y(),
+	// 	left.Z(), newUp.Z(), dir.Z(), camPos.Z(),
+	// 	0, 0, 0, 1}
+	return mgl.LookAtV(camPos, lookPt, camUp).Inv()
+}
+
+type Camera struct {
+	CamToWorld            M4
+	Pos                   V3
+	Look                  V3
+	Up                    V3
+	Fov                   Float
+	FilmWidth, FilmHeight Float
+	imgPlaneW, imgPlaneH  Float
+	imgPlaneD             Float
+	unitPPW, unitPPH      Float
+}
+
+func NewCamera(pos, look, up V3, fov Float, filmw, filmh int) *Camera {
+	c := &Camera{
+		Pos:        pos,
+		Look:       look,
+		Up:         up,
+		Fov:        fov,
+		FilmWidth:  Float(filmw),
+		FilmHeight: Float(filmh),
+		CamToWorld: LookAt(pos, look, up)}
+
+	if filmw >= filmh {
+		c.imgPlaneW = 2.0
+		c.imgPlaneH = 2.0 * c.FilmHeight / c.FilmWidth
+	} else {
+		c.imgPlaneH = 2.0
+		c.imgPlaneW = 2.0 * c.FilmWidth / c.FilmHeight
+	}
+	c.unitPPW = c.imgPlaneW / c.FilmWidth
+	c.unitPPH = c.imgPlaneH / c.FilmHeight
+	c.imgPlaneD = 1 / math.Tan(float64(fov/2)) // 1 on numerator because half imgPlaneW
+
+	return c
+}
+
+func (c *Camera) PixelToWorldCoord(col, row Float) V3 {
+	// I have no idea why i have to negate camPt.X and camPt.Z in order to
+	// make things work right.
+	camPt := V3{
+		-(c.imgPlaneW/2 - c.unitPPW*col),
+		c.imgPlaneH/2 - c.unitPPH*row,
+		-c.imgPlaneD}
+	worldPt := mgl.TransformCoordinate(camPt, c.CamToWorld)
+	return worldPt
+}
+
+// GetRay creates a ray from the camera into the scene through the final
+// image pixel at (col, row).
+func (c *Camera) GetRay(col, row Float) Ray {
+	return Ray{
+		Orig: c.Pos,
+		Dir:  c.PixelToWorldCoord(col, row).Sub(c.Pos).Normalize()}
 }
