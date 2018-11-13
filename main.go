@@ -8,20 +8,54 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
+
+type VecFlag V3
+
+func (v *VecFlag) String() string {
+	return fmt.Sprint(V3(*v))
+}
+
+func (v *VecFlag) Set(val string) error {
+	in := [3]Float{}
+	for i, p := range strings.Split(val, ",")[:3] {
+		n, err := strconv.ParseFloat(p, 64)
+		if err != nil {
+			return err
+		}
+		in[i] = Float(n)
+	}
+
+	vec := V3(*v)
+	vec = vec.Add(V3(in))
+	*v = VecFlag(vec)
+
+	return nil
+}
 
 func main() {
 
 	// rand.Seed(time.Now().UnixNano())
 
+	// TODO: flag vars need cleaning up and streamlined.
+	// many things can be stored right into the actual vars.
 	widthF := flag.Int("width", 300, "output width")
 	heightF := flag.Int("height", 200, "output height")
 	raysPerPxF := flag.Int("rays", 16, "sample rays per pixel")
 	bouncesF := flag.Int("bounces", 4, "max bounces per path")
 	chunkSizeF := flag.Int("chunk", 32, "square chunk size for render chunk")
+
 	fovF := flag.Float64("fov", 115.0, "field of view in degrees of widest part")
-	xposF := flag.Float64("xpos", -200, "")
+	camPosF := VecFlag(V3{-100, 0, 0})
+	lookF := VecFlag(V3{0, 0, 0})
+	camUpF := VecFlag(V3{0, 0, 1})
+	flag.Var(&camPosF, "cam", "camera position v3 in world coords")
+	flag.Var(&lookF, "look", "v3 point in world coords the camera is looking at")
+	flag.Var(&camUpF, "up", "camera up v3 in world coords")
+
 	flag.Parse()
 
 	width := *widthF
@@ -32,7 +66,7 @@ func main() {
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	cam := NewCamera(
-		V3{*xposF, 0, 0}, V3{*xposF + 1, 0, 0}, V3{0, 0, 1},
+		V3(camPosF), V3(lookF), V3(camUpF),
 		Float(math.Pi*(fov/180.0)), width, height)
 
 	geoms := Scene()

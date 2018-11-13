@@ -50,7 +50,7 @@ func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams)
 		fmt.Printf("Rendered chunk %d of %d        \r", done, totalPieces)
 		for p := range progress {
 			done += p
-			fmt.Printf("Rendered chunk %d of %d        \r", done, totalPieces) //100*Float(done)/Float(total))
+			fmt.Printf("Rendered chunk %d of %d        \r", done, totalPieces)
 		}
 	}()
 
@@ -166,7 +166,6 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	hit, foundHit := FindNearestHit(r, geoms)
 
 	if !foundHit {
-		fmt.Println("didnt find hit")
 		return // return black
 	}
 
