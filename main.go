@@ -13,38 +13,26 @@ import (
 
 func main() {
 
+	// rand.Seed(time.Now().UnixNano())
+
 	widthF := flag.Int("width", 300, "output width")
 	heightF := flag.Int("height", 200, "output height")
 	raysPerPxF := flag.Int("rays", 16, "sample rays per pixel")
+	bouncesF := flag.Int("bounces", 4, "max bounces per path")
+	fovF := flag.Float64("fov", 115.0, "field of view in degrees of widest part")
+	xposF := flag.Float64("xpos", -200, "")
 	flag.Parse()
 
 	width := *widthF
 	height := *heightF
 	raysPerPx := *raysPerPxF
+	bounces := *bouncesF
+	fov := *fovF
 
-	// rand.Seed(time.Now().UnixNano())
-
-	// const width = 600
-	// const height = 400
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	// var filmWidth, filmHeight, scale Float
-	// if width >= height {
-	// 	filmWidth = 300
-	// 	filmHeight = filmWidth * (Float(height) / Float(width))
-	// 	scale = filmWidth / Float(width)
-	// } else {
-	// 	filmHeight = 300
-	// 	filmWidth = filmHeight * (Float(width) / Float(height))
-	// 	scale = filmHeight / Float(height)
-	// }
-
-	// focal := V3{-100, 0, 0}
-
-	cam := NewCamera(V3{-100, 0, 0}, V3{0, 0, 0}, V3{0, 0, 1}, math.Pi*(115.0/180.0), width, height)
-
-	// const raysPerPx = 128
-	const bounces = 4
+	cam := NewCamera(
+		V3{*xposF, 0, 0}, V3{*xposF + 1, 0, 0}, V3{0, 0, 1},
+		Float(math.Pi*(fov/180.0)), width, height)
 
 	geoms := Scene()
 
@@ -53,20 +41,6 @@ func main() {
 	start := time.Now()
 
 	Render(geoms, cam, img, &RenderParams{SamplesPerPix: raysPerPx, MaxBounces: bounces})
-	// for r := 0; r < height; r++ {
-	// 	for c := 0; c < width; c++ {
-	// 		color := V3{0, 0, 0}
-	// 		for count := 0; count < raysPerPx; count++ {
-	// 			yJit := Float(rand.Float64())*2 - 1
-	// 			xJit := Float(rand.Float64())*2 - 1
-	// 			ray := cam.GetRay(Float(c)+xJit, Float(r)+yJit)
-	// 			sample := ShootRay(ray, geoms, bounces)
-	// 			color = color.Add(sample)
-	// 		}
-	// 		img.Set(c, r, V3ToColor(color.Mul(1/Float(raysPerPx))))
-	// 	}
-	// 	fmt.Printf("Rendering... %.1f%%              \r", 100*Float(r)/Float(height))
-	// }
 
 	took := time.Since(start).Seconds()
 	fmt.Println("Render complete. Writing to output.png")
