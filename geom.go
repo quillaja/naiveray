@@ -1,26 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"image/color"
 	"math"
-	"math/rand"
-
-	mgl "github.com/go-gl/mathgl/mgl64"
 )
-
-const epsilon = 0.0001
-
-// Below aliases are to make it easy to switch between 32 and 64 bit floats
-
-// V3 is a 3d vector.
-type V3 = mgl.Vec3
-
-// M4 is a 4x4 matrix.
-type M4 = mgl.Mat4
-
-// Float is a floating point number
-type Float = float64
 
 // Hit represents an intersection between a Ray and a Geometry.
 type Hit struct {
@@ -30,7 +12,8 @@ type Hit struct {
 	T      Float    // parametric "t" on ray of the intersection
 }
 
-// Ray represents a ray
+// Ray represents a ray defined by an origin point and
+// a normalized direction vector.
 type Ray struct {
 	Orig V3
 	Dir  V3
@@ -47,6 +30,7 @@ type Geometry interface {
 	Material() Material
 }
 
+// Sphere represents a sphere. It's defined by a center point and a radius.
 type Sphere struct {
 	Center V3
 	Radius Float
@@ -93,6 +77,7 @@ func (s Sphere) Material() Material {
 	return s.Mat
 }
 
+// Plane represents a plane. It's defined by a point and a normal to the plane.
 type Plane struct {
 	Point  V3
 	Normal V3
@@ -118,186 +103,4 @@ func (p Plane) Hits(r Ray) []Hit {
 
 func (p Plane) Material() Material {
 	return p.Mat
-}
-
-func ReflectionDir(incident, surfaceNormal V3) V3 {
-	IdotN := incident.Dot(surfaceNormal)
-	return incident.Sub(surfaceNormal.Mul(2 * IdotN))
-}
-
-// RandomBounce gets a
-func RandomBounce(normal V3) V3 {
-	rval := V3{
-		Float(rand.Float64())*2 - 1,
-		Float(rand.Float64())*2 - 1,
-		Float(rand.Float64())*2 - 1}.Normalize()
-
-	if normal.Dot(rval) < 0 {
-		rval = rval.Mul(-1)
-	}
-
-	return rval
-}
-
-func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
-	minT := Float(math.Inf(1))
-	for _, g := range geoms {
-		hits := g.Hits(r)
-		for _, h := range hits {
-			if epsilon < h.T && h.T < minT {
-				min = h
-				minT = h.T
-				foundHit = true
-			}
-		}
-	}
-
-	return
-}
-
-func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
-	if depth == 0 {
-		return // returns black
-	}
-
-	hit, foundHit := FindNearestHit(r, geoms)
-
-	if !foundHit {
-		fmt.Println("didnt find hit")
-		return // return black
-	}
-
-	mat := hit.Geom.Material()
-	if mat.Emit.Len() > 0 {
-		return mat.Emit // stop early for emitted
-	}
-
-	reflectD := ReflectionDir(r.Dir, hit.Normal)
-	if mat.Specularity < 1 {
-		reflectD = lerp(
-			RandomBounce(hit.Normal),
-			reflectD,
-			mat.Specularity).Normalize()
-	}
-
-	incCol := ShootRay(Ray{Orig: hit.Point, Dir: reflectD}, geoms, depth-1)
-
-	// rendering equation
-	cosFalloff := r.Dir.Mul(-1).Dot(hit.Normal)
-	cosFalloff = Float(math.Min(math.Max(0.1, float64(cosFalloff)), 1)) // clamp [0.1,1]
-
-	finalColor = hadamard(mat.Col, incCol).Mul(cosFalloff).Add(mat.Emit)
-
-	return
-}
-
-func lerp(v0, v1 V3, t Float) V3 {
-	return v0.Mul(1 - t).Add(v1.Mul(t))
-}
-
-func hadamard(a, b V3) V3 {
-	return V3{a.X() * b.X(), a.Y() * b.Y(), a.Z() * b.Z()}
-}
-
-/////////////////////////////////////////
-
-type Material struct {
-	Emit        V3
-	Col         V3
-	Specularity Float
-}
-
-func ColorToV3(col color.Color) V3 {
-	r, g, b, _ := col.RGBA()
-	rval := V3{Float(r), Float(g), Float(b)}.Mul(1 / Float(255))
-	return rval
-}
-
-func V3ToColor(vec V3) color.Color {
-	return color.RGBA{
-		R: uint8(clamp(255*vec.X(), 0, 255)),
-		G: uint8(clamp(255*vec.Y(), 0, 255)),
-		B: uint8(clamp(255*vec.Z(), 0, 255)),
-		A: 255}
-}
-
-func clamp(n, min, max Float) Float {
-	if n < min {
-		return min
-	}
-	if n > max {
-		return max
-	}
-	return n
-}
-
-/////////////////////////////////////////////////////////////////
-
-// LookAt returns a camera-to-world 4x4 transformation matrix
-func LookAt(camPos, lookPt, camUp V3) M4 {
-	// supposedly this does the same thing as the inverse of the mgl.LookAt()
-	// dir := lookPt.Sub(camPos).Normalize()
-	// left := camUp.Normalize().Cross(dir).Normalize()
-	// newUp := dir.Cross(left)
-	// return M4{
-	// 	left.X(), newUp.X(), dir.X(), camPos.X(),
-	// 	left.Y(), newUp.Y(), dir.Y(), camPos.Y(),
-	// 	left.Z(), newUp.Z(), dir.Z(), camPos.Z(),
-	// 	0, 0, 0, 1}
-	return mgl.LookAtV(camPos, lookPt, camUp).Inv()
-}
-
-type Camera struct {
-	CamToWorld            M4
-	Pos                   V3
-	Look                  V3
-	Up                    V3
-	Fov                   Float
-	FilmWidth, FilmHeight Float
-	imgPlaneW, imgPlaneH  Float
-	imgPlaneD             Float
-	unitPPW, unitPPH      Float
-}
-
-func NewCamera(pos, look, up V3, fov Float, filmw, filmh int) *Camera {
-	c := &Camera{
-		Pos:        pos,
-		Look:       look,
-		Up:         up,
-		Fov:        fov,
-		FilmWidth:  Float(filmw),
-		FilmHeight: Float(filmh),
-		CamToWorld: LookAt(pos, look, up)}
-
-	if filmw >= filmh {
-		c.imgPlaneW = 2.0
-		c.imgPlaneH = 2.0 * c.FilmHeight / c.FilmWidth
-	} else {
-		c.imgPlaneH = 2.0
-		c.imgPlaneW = 2.0 * c.FilmWidth / c.FilmHeight
-	}
-	c.unitPPW = c.imgPlaneW / c.FilmWidth
-	c.unitPPH = c.imgPlaneH / c.FilmHeight
-	c.imgPlaneD = 1 / math.Tan(float64(fov/2)) // 1 on numerator because half imgPlaneW
-
-	return c
-}
-
-func (c *Camera) PixelToWorldCoord(col, row Float) V3 {
-	// I have no idea why i have to negate camPt.X and camPt.Z in order to
-	// make things work right.
-	camPt := V3{
-		-(c.imgPlaneW/2 - c.unitPPW*col),
-		c.imgPlaneH/2 - c.unitPPH*row,
-		-c.imgPlaneD}
-	worldPt := mgl.TransformCoordinate(camPt, c.CamToWorld)
-	return worldPt
-}
-
-// GetRay creates a ray from the camera into the scene through the final
-// image pixel at (col, row).
-func (c *Camera) GetRay(col, row Float) Ray {
-	return Ray{
-		Orig: c.Pos,
-		Dir:  c.PixelToWorldCoord(col, row).Sub(c.Pos).Normalize()}
 }

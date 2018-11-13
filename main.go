@@ -7,7 +7,6 @@ import (
 	"image"
 	"image/png"
 	"math"
-	"math/rand"
 	"os"
 	"time"
 )
@@ -42,7 +41,7 @@ func main() {
 
 	// focal := V3{-100, 0, 0}
 
-	cam := NewCamera(V3{-75, 0, 0}, V3{0, 0, 0}, V3{0, 0, 1}, math.Pi*(115.0/180.0), width, height)
+	cam := NewCamera(V3{-100, 0, 0}, V3{0, 0, 0}, V3{0, 0, 1}, math.Pi*(115.0/180.0), width, height)
 
 	// const raysPerPx = 128
 	const bounces = 4
@@ -53,20 +52,21 @@ func main() {
 	fmt.Println("Beginning render")
 	start := time.Now()
 
-	for r := 0; r < height; r++ {
-		for c := 0; c < width; c++ {
-			color := V3{0, 0, 0}
-			for count := 0; count < raysPerPx; count++ {
-				yJit := Float(rand.Float64())*2 - 1
-				xJit := Float(rand.Float64())*2 - 1
-				ray := cam.GetRay(Float(c)+xJit, Float(r)+yJit)
-				sample := ShootRay(ray, geoms, bounces)
-				color = color.Add(sample)
-			}
-			img.Set(c, r, V3ToColor(color.Mul(1/Float(raysPerPx))))
-		}
-		fmt.Printf("Rendering... %.1f%%              \r", 100*Float(r)/Float(height))
-	}
+	Render(geoms, cam, img, &RenderParams{SamplesPerPix: raysPerPx, MaxBounces: bounces})
+	// for r := 0; r < height; r++ {
+	// 	for c := 0; c < width; c++ {
+	// 		color := V3{0, 0, 0}
+	// 		for count := 0; count < raysPerPx; count++ {
+	// 			yJit := Float(rand.Float64())*2 - 1
+	// 			xJit := Float(rand.Float64())*2 - 1
+	// 			ray := cam.GetRay(Float(c)+xJit, Float(r)+yJit)
+	// 			sample := ShootRay(ray, geoms, bounces)
+	// 			color = color.Add(sample)
+	// 		}
+	// 		img.Set(c, r, V3ToColor(color.Mul(1/Float(raysPerPx))))
+	// 	}
+	// 	fmt.Printf("Rendering... %.1f%%              \r", 100*Float(r)/Float(height))
+	// }
 
 	took := time.Since(start).Seconds()
 	fmt.Println("Render complete. Writing to output.png")
