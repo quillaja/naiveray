@@ -29,9 +29,7 @@ func (v *VecFlag) Set(val string) error {
 		in[i] = Float(n)
 	}
 
-	vec := V3(*v)
-	vec = vec.Add(V3(in))
-	*v = VecFlag(vec)
+	*v = VecFlag(in)
 
 	return nil
 }
