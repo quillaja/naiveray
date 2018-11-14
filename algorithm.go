@@ -126,8 +126,8 @@ func ReflectionDir(incident, surfaceNormal V3) V3 {
 	return incident.Sub(surfaceNormal.Mul(2 * IdotN))
 }
 
-// RandomBounce gets a
-func RandomBounce(normal V3) V3 {
+// RandomBounceHemisphere gets a
+func RandomBounceHemisphere(normal V3) V3 {
 	rval := V3{
 		Float(rand.Float64())*2 - 1,
 		Float(rand.Float64())*2 - 1,
@@ -138,6 +138,14 @@ func RandomBounce(normal V3) V3 {
 	}
 
 	return rval
+}
+
+// RandomBounceSphere gets a
+func RandomBounceSphere() V3 {
+	return V3{
+		Float(rand.Float64())*2 - 1,
+		Float(rand.Float64())*2 - 1,
+		Float(rand.Float64())*2 - 1}.Normalize()
 }
 
 func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
@@ -156,15 +164,28 @@ func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 	return
 }
 
+var ambient = Material{
+	Emit:        V3{1, 1, 1},
+	Col:         V3{0.8, 0.8, 0.1},
+	Specularity: 0.10 / 100.0} // 10% chance of scatter in 100 units distance
+
 func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	if depth == 0 {
-		return // returns black
+		return ambient.Emit
 	}
 
 	hit, foundHit := FindNearestHit(r, geoms)
-
 	if !foundHit {
 		return // return black
+	}
+
+	// "haze"
+	if rand.Float64() < hit.T*ambient.Specularity { // chance per some unit length
+		// cause ray to "redirect" at some random point along the ray
+		// between the ray's origin and the geometry it hit.
+		redirectP := r.Point(hit.T * Float(rand.Float64())) // some random point along Ray r
+		incCol := ShootRay(Ray{Orig: redirectP, Dir: RandomBounceSphere()}, geoms, depth-1)
+		return hadamard(incCol, ambient.Col)
 	}
 
 	mat := hit.Geom.Material()
@@ -175,7 +196,7 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	reflectD := ReflectionDir(r.Dir, hit.Normal)
 	if mat.Specularity < 1 {
 		reflectD = lerp(
-			RandomBounce(hit.Normal),
+			RandomBounceHemisphere(hit.Normal),
 			reflectD,
 			mat.Specularity).Normalize()
 	}
