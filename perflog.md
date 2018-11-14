@@ -47,6 +47,23 @@ Took: 813.15 s
 Time/Sample: 0.00331 ms
 _Note: after removing some cruft in hit detection parts_
 
+## 08-2.png
+800 x 600 image, 512 samples per px
+Beginning render
+Render complete. Writing to output.png
+Took: 732.81 s
+Time/Sample: 0.00298 ms
+_Note: removed some more cruft (making lots of slices)_
+
+## unsaved
+800 x 600 image, 512 samples per px
+Beginning render
+Render complete. Writing to output.png
+Took: 709.02 s
+Time/Sample: 0.00289 ms
+_Note: while running pprof_
+
+
 # Chunk size
 
 ## 640x480 32rays 
