@@ -31,6 +31,14 @@ Render complete. Writing to output.png
 Took: 8.39 s
 Sec/Sample: 0.00218 ms
 
+## 07-1.png
+1920 x 1080 image, 2048 samples per px
+Beginning render
+Render complete. Writing to output.png
+Took: 14662.22 s (4hr)
+Time/Sample: 0.00345 ms
+_Note: why hardly any speedup vs 01-1?_
+
 # Chunk size
 
 ## 640x480 32rays 

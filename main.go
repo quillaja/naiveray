@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -45,6 +46,7 @@ func main() {
 	raysPerPxF := flag.Int("rays", 16, "sample rays per pixel")
 	bouncesF := flag.Int("bounces", 4, "max bounces per path")
 	chunkSizeF := flag.Int("chunk", 32, "square chunk size for render chunk")
+	profF := flag.String("profile", "", "filename for cpu profile output")
 
 	fovF := flag.Float64("fov", 115.0, "field of view in degrees of widest part")
 	camPosF := VecFlag(V3{-100, 0, 0})
@@ -69,8 +71,19 @@ func main() {
 
 	geoms := Scene()
 
+	// profiling
+	if *profF != "" {
+		prof, err := os.Create(*profF)
+		if err != nil {
+			panic(err)
+		}
+		pprof.StartCPUProfile(prof)
+		defer pprof.StopCPUProfile()
+	}
+
 	fmt.Printf("%d x %d image, %d samples per px\n", width, height, raysPerPx)
 	fmt.Println("Beginning render")
+
 	start := time.Now()
 
 	Render(geoms, cam, img,
@@ -80,6 +93,7 @@ func main() {
 			ChunkSize:     *chunkSizeF})
 
 	took := time.Since(start).Seconds()
+
 	fmt.Println("Render complete. Writing to output.png")
 	fmt.Printf("Took: %.2f s\n", took)
 	fmt.Printf("Time/Sample: %.5f ms\n", 1000*took/Float(width*height*raysPerPx))

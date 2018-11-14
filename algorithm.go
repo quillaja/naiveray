@@ -68,8 +68,6 @@ func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams)
 
 	// divide img into chunks (RenderJobs)
 	// and put jobs in queue
-	// dy := img.Bounds().Dy() / div
-	// dx := img.Bounds().Dx() / div
 	for y := 0; y < img.Bounds().Max.Y; y += chunkSize {
 		for x := 0; x < img.Bounds().Max.X; x += chunkSize {
 
