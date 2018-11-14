@@ -26,7 +26,7 @@ func (r Ray) Point(t Float) V3 {
 
 // Geometry abstracts the interface for various geometries.
 type Geometry interface {
-	Hits(r Ray) (Hit, bool)
+	Hits(hit *Hit, r Ray) bool
 	Material() Material
 }
 
@@ -37,7 +37,7 @@ type Sphere struct {
 	Mat    Material
 }
 
-func (s Sphere) Hits(r Ray) (Hit, bool) {
+func (s Sphere) Hits(hit *Hit, r Ray) bool {
 	OC := r.Orig.Sub(s.Center)
 	dirDotOC := r.Dir.Dot(OC)
 	OClen := OC.Len()
@@ -46,29 +46,23 @@ func (s Sphere) Hits(r Ray) (Hit, bool) {
 
 	if rside == 0 {
 		p := r.Point(t)
-		return Hit{
-			T:      t,
-			Point:  p,
-			Normal: p.Sub(s.Center).Normalize(),
-			Geom:   s}, true
+		hit.T = t
+		hit.Point = p
+		hit.Normal = p.Sub(s.Center).Normalize()
+		hit.Geom = s
+		return true
 
 	} else if rside > 0 {
 		rside = Float(math.Sqrt(float64(rside)))
 		p1 := r.Point(t - rside)
-		// p2 := r.Point(t + rside)
-		return Hit{ // NOTE: only really care about NEAREST hit, right?
-			T:      t - rside,
-			Point:  p1,
-			Normal: p1.Sub(s.Center).Normalize(),
-			Geom:   s}, true
-		// Hit{
-		// 	T:      t + rside,
-		// 	Point:  p2,
-		// 	Normal: p2.Sub(s.Center).Normalize(),
-		// 	Geom:   s}}
+		hit.T = t - rside
+		hit.Point = p1
+		hit.Normal = p1.Sub(s.Center).Normalize()
+		hit.Geom = s
+		return true
 	}
 
-	return Hit{}, false
+	return false
 }
 
 func (s Sphere) Material() Material {
@@ -82,19 +76,19 @@ type Plane struct {
 	Mat    Material
 }
 
-func (p Plane) Hits(r Ray) (Hit, bool) {
+func (p Plane) Hits(hit *Hit, r Ray) bool {
 	denom := r.Dir.Dot(p.Normal)
 
 	if denom != 0 {
 		t := p.Point.Sub(r.Orig).Dot(p.Normal) / denom
-		return Hit{
-			T:      t,
-			Point:  r.Point(t),
-			Normal: p.Normal,
-			Geom:   p}, true
+		hit.T = t
+		hit.Point = r.Point(t)
+		hit.Normal = p.Normal
+		hit.Geom = p
+		return true
 	}
 
-	return Hit{}, false // plane and ray are parallel
+	return false // plane and ray are parallel
 
 }
 
