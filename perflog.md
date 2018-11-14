@@ -39,6 +39,14 @@ Took: 14662.22 s (4hr)
 Time/Sample: 0.00345 ms
 _Note: why hardly any speedup vs 01-1?_
 
+## 08-1.png
+800 x 600 image, 512 samples per px
+Beginning render
+Render complete. Writing to output.png
+Took: 813.15 s
+Time/Sample: 0.00331 ms
+_Note: after removing some cruft in hit detection parts_
+
 # Chunk size
 
 ## 640x480 32rays 

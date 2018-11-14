@@ -143,8 +143,7 @@ func RandomBounce(normal V3) V3 {
 func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 	minT := Float(math.Inf(1))
 	for _, g := range geoms {
-		hits := g.Hits(r)
-		for _, h := range hits {
+		if h, any := g.Hits(r); any {
 			if epsilon < h.T && h.T < minT {
 				min = h
 				minT = h.T
