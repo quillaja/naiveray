@@ -165,13 +165,14 @@ func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 }
 
 var ambient = Material{
-	Emit:        V3{1, 1, 1},
-	Col:         V3{0.8, 0.8, 0.1},
-	Specularity: 0.10 / 100.0} // 10% chance of scatter in 100 units distance
+	Emittance:   V3{1, 1, 1},          // general environmental lighting ("sky")
+	Reflectance: V3{0.95, 0.95, 0.95}, // ref properties of "dust particles"
+	Diffuse:     0.00 / 100.0,         // % chance of scatter in 100 units distance
+	Glossy:      0}                    // meaningless in this context
 
 func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	if depth == 0 {
-		return ambient.Emit
+		return ambient.Emittance
 	}
 
 	hit, foundHit := FindNearestHit(r, geoms)
@@ -180,34 +181,40 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	}
 
 	// "haze"
-	if rand.Float64() < hit.T*ambient.Specularity { // chance per some unit length
+	if rand.Float64() < hit.T*ambient.Diffuse { // chance per some unit length
 		// cause ray to "redirect" at some random point along the ray
 		// between the ray's origin and the geometry it hit.
 		redirectP := r.Point(hit.T * Float(rand.Float64())) // some random point along Ray r
 		incCol := ShootRay(Ray{Orig: redirectP, Dir: RandomBounceSphere()}, geoms, depth-1)
-		return hadamard(incCol, ambient.Col)
+		return hadamard(incCol, ambient.Reflectance)
 	}
 
 	mat := hit.Geom.Material()
-	if mat.Emit.Len() > 0 {
-		return mat.Emit // stop early for emitted
+	if mat.Emittance.Len() > 0 {
+		return mat.Emittance // stop early for emitted
 	}
 
+	// perform a pure specular reflection sometimes per Diffuse
+	// perform a weighted diffuse reflection per Glossy
 	reflectD := ReflectionDir(r.Dir, hit.Normal)
-	if mat.Specularity < 1 {
+	if Float(rand.Float64()) < mat.Diffuse {
+		reflectD = RandomBounceHemisphere(hit.Normal)
+	} else {
 		reflectD = lerp(
 			RandomBounceHemisphere(hit.Normal),
 			reflectD,
-			mat.Specularity).Normalize()
+			mat.Glossy).Normalize()
 	}
 
 	incCol := ShootRay(Ray{Orig: hit.Point, Dir: reflectD}, geoms, depth-1)
 
 	// rendering equation
-	cosFalloff := r.Dir.Mul(-1).Dot(hit.Normal)
-	cosFalloff = Float(math.Min(math.Max(0.1, float64(cosFalloff)), 1)) // clamp [0.1,1]
+	cosTerm := Float(math.Abs(float64(reflectD.Dot(hit.Normal))))
+	if cosTerm < 0.25 { // questionable?
+		cosTerm = 0.25
+	}
 
-	finalColor = hadamard(mat.Col, incCol).Mul(cosFalloff).Add(mat.Emit)
+	finalColor = hadamard(mat.Reflectance, incCol).Mul(cosTerm).Add(mat.Emittance)
 
 	return
 }

@@ -3,9 +3,10 @@ package main
 import "image/color"
 
 type Material struct {
-	Emit        V3
-	Col         V3
-	Specularity Float
+	Emittance   V3
+	Reflectance V3
+	Diffuse     Float
+	Glossy      Float
 }
 
 func ColorToV3(col color.Color) V3 {

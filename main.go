@@ -46,6 +46,7 @@ func main() {
 	raysPerPxF := flag.Int("rays", 16, "sample rays per pixel")
 	bouncesF := flag.Int("bounces", 4, "max bounces per path")
 	chunkSizeF := flag.Int("chunk", 32, "square chunk size for render chunk")
+	outputF := flag.String("out", "output.png", "output file name (PNG)")
 	profF := flag.String("profile", "", "filename for cpu profile output")
 
 	fovF := flag.Float64("fov", 115.0, "field of view in degrees of widest part")
@@ -94,11 +95,11 @@ func main() {
 
 	took := time.Since(start).Seconds()
 
-	fmt.Println("Render complete. Writing to output.png")
+	fmt.Printf("Render complete. Writing to %s\n", *outputF)
 	fmt.Printf("Took: %.2f s\n", took)
 	fmt.Printf("Time/Sample: %.5f ms\n", 1000*took/Float(width*height*raysPerPx))
 
-	file, err := os.Create("output.png")
+	file, err := os.Create(*outputF)
 	if err != nil {
 		panic(err)
 	}
@@ -116,8 +117,9 @@ func Scene() []Geometry {
 			Point:  V3{800, 0, 0},
 			Normal: V3{-1, 0, 0},
 			Mat: Material{
-				Col:         V3{0.2, 0.2, 1},
-				Specularity: 0.5},
+				Reflectance: V3{0.2, 0.2, 1},
+				Diffuse:     0.95,
+				Glossy:      0.05},
 		},
 
 		// behind camera wall
@@ -125,8 +127,9 @@ func Scene() []Geometry {
 			Point:  V3{-800, 0, 0},
 			Normal: V3{1, 0, 0},
 			Mat: Material{
-				Col:         V3{1, 0.2, 1},
-				Specularity: 0.5},
+				Reflectance: V3{1, 0.2, 1},
+				Diffuse:     0.95,
+				Glossy:      0.05},
 		},
 
 		// ceiling
@@ -134,9 +137,10 @@ func Scene() []Geometry {
 			Point:  V3{0, 0, 400},
 			Normal: V3{0, 0, -1},
 			Mat: Material{
-				Col:         V3{1, 1, 1},
-				Emit:        V3{2, 2, 2},
-				Specularity: 0.1},
+				Reflectance: V3{1, 1, 1},
+				Emittance:   V3{2, 2, 2},
+				Diffuse:     0.95,
+				Glossy:      0.05},
 		},
 
 		// floor
@@ -144,8 +148,8 @@ func Scene() []Geometry {
 			Point:  V3{0, 0, -200},
 			Normal: V3{0, 0, 1},
 			Mat: Material{
-				Col:         V3{1, 1, 1},
-				Specularity: 0.1},
+				Reflectance: V3{1, 1, 1},
+				Diffuse:     1},
 		},
 
 		// left wall
@@ -153,8 +157,9 @@ func Scene() []Geometry {
 			Point:  V3{0, 400, 0},
 			Normal: V3{0, -1, 0},
 			Mat: Material{
-				Col:         V3{0.2, 1, 0.2},
-				Specularity: 0.5},
+				Reflectance: V3{0.2, 1, 0.2},
+				Diffuse:     0.9,
+				Glossy:      0.5},
 		},
 
 		// right wall
@@ -162,34 +167,37 @@ func Scene() []Geometry {
 			Point:  V3{0, -400, 0},
 			Normal: V3{0, 1, 0},
 			Mat: Material{
-				Col:         V3{1, 0.2, 0.2},
-				Specularity: 0.5},
+				Reflectance: V3{1, 0.2, 0.2},
+				Diffuse:     0.95,
+				Glossy:      0},
 		},
 
 		// high mirror ball
 		Sphere{
 			Center: V3{150, 100, 100},
-			Radius: Float(100),
+			Radius: 100,
 			Mat: Material{
-				Col:         V3{1, 1, 0.75},
-				Specularity: 0.95},
+				Reflectance: V3{1, 1, 0.75},
+				Diffuse:     0,
+				Glossy:      0.95},
 		},
 
 		// low semi-mirror ball
 		Sphere{
 			Center: V3{200, -100, -100},
-			Radius: Float(100),
+			Radius: 100,
 			Mat: Material{
-				Col:         V3{0.7, 0.7, 1},
-				Specularity: 0.65},
+				Reflectance: V3{0.7, 0.7, 1},
+				Diffuse:     0.9,
+				Glossy:      1},
 		},
 
-		// high mirror ball
+		// back glowing ball
 		Sphere{
 			Center: V3{700, 300, -175},
-			Radius: Float(80),
+			Radius: 80,
 			Mat: Material{
-				Emit: V3{5, 1, 5}},
+				Emittance: V3{2, 1, 2}},
 		},
 	}
 }
