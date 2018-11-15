@@ -5,6 +5,7 @@ import "image/color"
 type Material struct {
 	Emittance   V3
 	Reflectance V3
+	Eta         Float
 	Diffuse     Float
 	Glossy      Float
 }

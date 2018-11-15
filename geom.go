@@ -15,8 +15,9 @@ type Hit struct {
 // Ray represents a ray defined by an origin point and
 // a normalized direction vector.
 type Ray struct {
-	Orig V3
-	Dir  V3
+	Orig   V3
+	Dir    V3
+	Medium *Material
 }
 
 // Point returns the point along the ray at "t".

@@ -105,6 +105,7 @@ func RenderChunk(job RenderJob) {
 					yJit := Float(rand.Float64())*2 - 1 // [-0.5, 0.5)
 					xJit := Float(rand.Float64())*2 - 1
 					ray := job.Cam.GetRay(Float(c)+xJit, Float(r)+yJit)
+					ray.Medium = &ambient
 					sample := ShootRay(ray, job.Geoms, job.Params.MaxBounces)
 					color = color.Add(sample)
 				}
@@ -124,6 +125,39 @@ func isIn(c, r int, bound image.Rectangle) bool {
 func ReflectionDir(incident, surfaceNormal V3) V3 {
 	IdotN := incident.Dot(surfaceNormal)
 	return incident.Sub(surfaceNormal.Mul(2 * IdotN))
+}
+
+func RefractionDir(incident, surfaceNormal V3, eta1, eta2 Float) V3 {
+	r := eta1 / eta2
+	c := incident.Dot(surfaceNormal)
+	if c < 0 {
+		// c = Float(math.Abs(float64(c)))
+		c = -c
+		// r = -r
+	} else {
+		surfaceNormal = surfaceNormal.Mul(-1)
+		// r = -r
+	}
+
+	rightside := r*c - Float(math.Sqrt(float64(1-(r*r)*(1-c*c))))
+	return incident.Mul(r).Add(surfaceNormal.Mul(rightside))
+}
+
+func Schlick(incident, surfaceNormal V3, eta1, eta2 Float) Float {
+
+	cosTheta := float64(incident.Dot(surfaceNormal))
+	if eta1 > eta2 && math.Acos(cosTheta) >= math.Asin(eta2/eta1) {
+		// at or beyond critical angle for total internal reflection
+		return 1
+	}
+
+	r0 := Float(math.Pow(float64((eta1-eta2)/(eta1+eta2)), 2))
+	costerm := 1 - Float(math.Abs(cosTheta)) // (1 - (-I dot N))
+	R := r0 + (1-r0)*(costerm*costerm*costerm*costerm*costerm)
+	if R < 0 || R > 1 {
+		r0 = 10
+	}
+	return R
 }
 
 // RandomBounceHemisphere gets a
@@ -165,10 +199,11 @@ func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 }
 
 var ambient = Material{
-	Emittance:   V3{1, 1, 1},          // general environmental lighting ("sky")
-	Reflectance: V3{0.95, 0.95, 0.95}, // ref properties of "dust particles"
-	Diffuse:     0.00 / 100.0,         // % chance of scatter in 100 units distance
-	Glossy:      0}                    // meaningless in this context
+	Emittance:   V3{1, 1, 1},       // general environmental lighting ("sky")
+	Reflectance: V3{0.9, 0.9, 0.1}, // ref properties of "dust particles"
+	Eta:         1,                 // refraction coefficient of air (approx)
+	Diffuse:     0.0 / 100.0,       // % chance of scatter in 100 units distance
+	Glossy:      0}                 // meaningless in this context
 
 func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	if depth == 0 {
@@ -181,37 +216,54 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	}
 
 	// "haze"
-	if rand.Float64() < hit.T*ambient.Diffuse { // chance per some unit length
-		// cause ray to "redirect" at some random point along the ray
-		// between the ray's origin and the geometry it hit.
-		redirectP := r.Point(hit.T * Float(rand.Float64())) // some random point along Ray r
-		incCol := ShootRay(Ray{Orig: redirectP, Dir: RandomBounceSphere()}, geoms, depth-1)
-		return hadamard(incCol, ambient.Reflectance)
-	}
+	// if rand.Float64() < hit.T*ambient.Diffuse { // chance per some unit length
+	// 	// cause ray to "redirect" at some random point along the ray
+	// 	// between the ray's origin and the geometry it hit.
+	// 	redirectP := r.Point(hit.T * Float(rand.Float64())) // some random point along Ray r
+	// 	incCol := ShootRay(Ray{Orig: redirectP, Dir: RandomBounceSphere()}, geoms, depth-1)
+	// 	return hadamard(incCol, ambient.Reflectance)
+	// }
 
 	mat := hit.Geom.Material()
 	if mat.Emittance.Len() > 0 {
 		return mat.Emittance // stop early for emitted
 	}
 
+	newRay := Ray{Orig: hit.Point, Medium: r.Medium}
+
 	// perform a pure specular reflection sometimes per Diffuse
 	// perform a weighted diffuse reflection per Glossy
-	reflectD := ReflectionDir(r.Dir, hit.Normal)
+	newRay.Dir = ReflectionDir(r.Dir, hit.Normal)
 	if Float(rand.Float64()) < mat.Diffuse {
-		reflectD = RandomBounceHemisphere(hit.Normal)
+		newRay.Dir = RandomBounceHemisphere(hit.Normal)
 	} else {
-		reflectD = lerp(
+		newRay.Dir = lerp(
 			RandomBounceHemisphere(hit.Normal),
-			reflectD,
+			newRay.Dir,
 			mat.Glossy).Normalize()
 	}
 
-	incCol := ShootRay(Ray{Orig: hit.Point, Dir: reflectD}, geoms, depth-1)
+	if s, ok := hit.Geom.(Sphere); ok && s == geoms[6] { // do this only for the "glass" sphere
+		refracCoeff := 1 - Schlick(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
+		if Float(rand.Float64()) < refracCoeff {
+			if r.Dir.Dot(hit.Normal) < 0 {
+				// out-to-inside
+				newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
+				newRay.Medium = &mat
+			} else {
+				// in-to-outside
+				newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, ambient.Eta)
+				newRay.Medium = &ambient
+			}
+		}
+	}
+
+	incCol := ShootRay(newRay, geoms, depth-1)
 
 	// rendering equation
-	cosTerm := Float(math.Abs(float64(reflectD.Dot(hit.Normal))))
-	if cosTerm < 0.25 { // questionable?
-		cosTerm = 0.25
+	cosTerm := Float(math.Abs(float64(newRay.Dir.Dot(hit.Normal))))
+	if cosTerm < 0.5 { // questionable?
+		cosTerm = 0.5
 	}
 
 	finalColor = hadamard(mat.Reflectance, incCol).Mul(cosTerm).Add(mat.Emittance)

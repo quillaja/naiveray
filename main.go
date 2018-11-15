@@ -159,7 +159,7 @@ func Scene() []Geometry {
 			Mat: Material{
 				Reflectance: V3{0.2, 1, 0.2},
 				Diffuse:     0.9,
-				Glossy:      0.5},
+				Glossy:      0.25},
 		},
 
 		// right wall
@@ -172,17 +172,18 @@ func Scene() []Geometry {
 				Glossy:      0},
 		},
 
-		// high mirror ball
+		// high left ball
 		Sphere{
 			Center: V3{150, 100, 100},
 			Radius: 100,
 			Mat: Material{
-				Reflectance: V3{1, 1, 0.75},
+				Reflectance: V3{1, 1, 1},
+				Eta:         1.5,
 				Diffuse:     0,
 				Glossy:      0.95},
 		},
 
-		// low semi-mirror ball
+		// low right ball
 		Sphere{
 			Center: V3{200, -100, -100},
 			Radius: 100,
