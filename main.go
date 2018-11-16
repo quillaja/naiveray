@@ -70,7 +70,7 @@ func main() {
 		V3(camPosF), V3(lookF), V3(camUpF),
 		Float(math.Pi*(fov/180.0)), width, height)
 
-	geoms := Scene()
+	geoms := Scene1()
 
 	// profiling
 	if *profF != "" {
@@ -108,9 +108,38 @@ func main() {
 	png.Encode(file, img)
 }
 
-func Scene() []Geometry {
+func Scene1() []Geometry {
 
 	return []Geometry{
+
+		// high left ball
+		Sphere{
+			Center: V3{150, 100, -100},
+			Radius: 100,
+			Mat: Material{
+				Reflectance: V3{1, 1, 1},
+				Eta:         1.5,
+				Diffuse:     0,
+				Glossy:      0.95},
+		},
+
+		// low right ball
+		Sphere{
+			Center: V3{200, -100, -100},
+			Radius: 100,
+			Mat: Material{
+				Reflectance: V3{0.7, 0.7, 1},
+				Diffuse:     0.1,
+				Glossy:      1},
+		},
+
+		// back glowing ball
+		Sphere{
+			Center: V3{700, 300, -175},
+			Radius: 80,
+			Mat: Material{
+				Emittance: V3{5, 5, 5}},
+		},
 
 		// front-of-camera wall (rear of scene)
 		Plane{
@@ -138,9 +167,9 @@ func Scene() []Geometry {
 			Normal: V3{0, 0, -1},
 			Mat: Material{
 				Reflectance: V3{1, 1, 1},
-				Emittance:   V3{2, 2, 2},
-				Diffuse:     0.95,
-				Glossy:      0.05},
+				// Emittance:   V3{1, 1, 1},
+				Diffuse: 0.95,
+				Glossy:  0.05},
 		},
 
 		// floor
@@ -171,34 +200,32 @@ func Scene() []Geometry {
 				Diffuse:     0.95,
 				Glossy:      0},
 		},
+	}
+}
 
-		// high left ball
+func Scene2() []Geometry {
+	return []Geometry{
 		Sphere{
-			Center: V3{150, 100, 100},
-			Radius: 100,
+			Center: V3{0, 0, 50},
+			Radius: 50,
 			Mat: Material{
 				Reflectance: V3{1, 1, 1},
-				Eta:         1.5,
-				Diffuse:     0,
-				Glossy:      0.95},
+				Eta:         1.5},
 		},
 
-		// low right ball
-		Sphere{
-			Center: V3{200, -100, -100},
-			Radius: 100,
+		Plane{
+			Point:  V3{0, 0, 0},
+			Normal: V3{0, 0, 1},
 			Mat: Material{
-				Reflectance: V3{0.7, 0.7, 1},
-				Diffuse:     0.9,
-				Glossy:      1},
+				Reflectance: V3{1, 1, 1},
+				Diffuse:     1},
 		},
 
-		// back glowing ball
-		Sphere{
-			Center: V3{700, 300, -175},
-			Radius: 80,
+		Plane{
+			Point:  V3{0, 0, 500},
+			Normal: V3{0, 0, -1},
 			Mat: Material{
-				Emittance: V3{2, 1, 2}},
+				Emittance: V3{1.5, 1.5, 1.5}},
 		},
 	}
 }

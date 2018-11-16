@@ -10,7 +10,9 @@ import (
 )
 
 type JobQueue chan RenderJob
-type Report chan int
+type Report chan struct{}
+
+var doneSignal = struct{}{}
 
 type RenderJob struct {
 	Bounds image.Rectangle
@@ -48,8 +50,8 @@ func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams)
 	go func() {
 		done := 0
 		fmt.Printf("Rendered chunk %d of %d        \r", done, totalPieces)
-		for p := range progress {
-			done += p
+		for range progress {
+			done++
 			fmt.Printf("Rendered chunk %d of %d        \r", done, totalPieces)
 		}
 	}()
@@ -91,7 +93,7 @@ func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams)
 func RenderWorker(jobs JobQueue, prog Report) {
 	for job := range jobs {
 		RenderChunk(job)
-		prog <- 1
+		prog <- doneSignal
 	}
 }
 
@@ -128,19 +130,20 @@ func ReflectionDir(incident, surfaceNormal V3) V3 {
 }
 
 func RefractionDir(incident, surfaceNormal V3, eta1, eta2 Float) V3 {
+	// TODO: get this crap about incident directions figured out once
+	// and for all
+	// This works.
+	// wikipedia assumes incident ray is from cam to point,
+	// PBR assumes incident ray is from point to cam.
 	r := eta1 / eta2
 	c := incident.Dot(surfaceNormal)
-	if c < 0 {
-		// c = Float(math.Abs(float64(c)))
-		c = -c
-		// r = -r
-	} else {
+	if c > 0 {
+		// in-out
 		surfaceNormal = surfaceNormal.Mul(-1)
-		// r = -r
 	}
 
 	rightside := r*c - Float(math.Sqrt(float64(1-(r*r)*(1-c*c))))
-	return incident.Mul(r).Add(surfaceNormal.Mul(rightside))
+	return incident.Mul(-r).Add(surfaceNormal.Mul(rightside))
 }
 
 func Schlick(incident, surfaceNormal V3, eta1, eta2 Float) Float {
@@ -198,6 +201,12 @@ func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 	return
 }
 
+func grid(a, b V3) bool {
+	c := b.Sub(a)
+	// x, y, z := int(c.X()), int(c.Y()), int(c.Z())
+	return int(c.Len())%100 == 0
+}
+
 var ambient = Material{
 	Emittance:   V3{1, 1, 1},       // general environmental lighting ("sky")
 	Reflectance: V3{0.9, 0.9, 0.1}, // ref properties of "dust particles"
@@ -212,7 +221,7 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 
 	hit, foundHit := FindNearestHit(r, geoms)
 	if !foundHit {
-		return // return black
+		return ambient.Emittance
 	}
 
 	// "haze"
@@ -229,6 +238,13 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 		return mat.Emittance // stop early for emitted
 	}
 
+	// HACK grids onto planes
+	if plane, ok := hit.Geom.(Plane); ok {
+		if grid(plane.Point, hit.Point) {
+			return V3{0.1, 0.1, 0.1}
+		}
+	}
+
 	newRay := Ray{Orig: hit.Point, Medium: r.Medium}
 
 	// perform a pure specular reflection sometimes per Diffuse
@@ -236,14 +252,15 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	newRay.Dir = ReflectionDir(r.Dir, hit.Normal)
 	if Float(rand.Float64()) < mat.Diffuse {
 		newRay.Dir = RandomBounceHemisphere(hit.Normal)
-	} else {
-		newRay.Dir = lerp(
-			RandomBounceHemisphere(hit.Normal),
-			newRay.Dir,
-			mat.Glossy).Normalize()
 	}
+	// else {
+	// 	newRay.Dir = lerp(
+	// 		RandomBounceHemisphere(hit.Normal),
+	// 		newRay.Dir,
+	// 		mat.Glossy).Normalize()
+	// }
 
-	if s, ok := hit.Geom.(Sphere); ok && s == geoms[6] { // do this only for the "glass" sphere
+	if s, ok := hit.Geom.(Sphere); ok && s == geoms[0] { // do this only for the "glass" sphere
 		refracCoeff := 1 - Schlick(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
 		if Float(rand.Float64()) < refracCoeff {
 			if r.Dir.Dot(hit.Normal) < 0 {
@@ -255,6 +272,7 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 				newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, ambient.Eta)
 				newRay.Medium = &ambient
 			}
+			// newRay.Orig = r.Point(hit.T + 0.0001)
 		}
 	}
 
