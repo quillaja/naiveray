@@ -45,13 +45,14 @@ func NewCamera(pos, look, up V3, fov Float, filmw, filmh int) *Camera {
 	if filmw >= filmh {
 		c.imgPlaneW = 2.0
 		c.imgPlaneH = 2.0 * c.FilmHeight / c.FilmWidth
+		c.imgPlaneD = (0.5 * c.imgPlaneH) / math.Tan(float64(fov/2)) // numerator half imgPlaneH
 	} else {
 		c.imgPlaneH = 2.0
 		c.imgPlaneW = 2.0 * c.FilmWidth / c.FilmHeight
+		c.imgPlaneD = (0.5 * c.imgPlaneW) / math.Tan(float64(fov/2)) // numerator = half imgPlaneW
 	}
 	c.unitPPW = c.imgPlaneW / c.FilmWidth
 	c.unitPPH = c.imgPlaneH / c.FilmHeight
-	c.imgPlaneD = 1 / math.Tan(float64(fov/2)) // 1 on numerator because half imgPlaneW
 
 	return c
 }
