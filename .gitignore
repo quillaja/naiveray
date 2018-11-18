@@ -3,4 +3,5 @@
 *.fish
 *.prof
 *.mkv
+.vscode/*
 naiveray
