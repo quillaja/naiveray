@@ -96,3 +96,93 @@ func (p Plane) Hits(hit *Hit, r Ray) bool {
 func (p Plane) Material() Material {
 	return p.Mat
 }
+
+type TriangleMesh struct {
+	Verts []V3
+	Index []int
+	Mat   Material
+}
+
+func (t TriangleMesh) count() int {
+	return len(t.Index) / 3
+}
+
+func (t TriangleMesh) get(which int) (verts [3]V3) {
+	for i, v := range t.Index[which*3 : (which+1)*3] {
+		verts[i] = t.Verts[v]
+	}
+	return
+}
+
+func (t TriangleMesh) Hits(hit *Hit, r Ray) bool {
+	// for each triangle, test ray and triangle,
+	// while also finding the minimun t
+	minT := Float(math.Inf(1))
+	found := false
+	candidate := &Hit{}
+	for i := 0; i < t.count(); i++ {
+		verts := t.get(i)
+		if rayTriangle(candidate, verts, r) {
+			if epsilon < candidate.T && candidate.T < minT {
+				*hit = *candidate
+				hit.Geom = t
+				minT = hit.T
+				found = true
+			}
+		}
+	}
+
+	return found
+}
+
+func (t TriangleMesh) Material() Material {
+	return t.Mat
+}
+
+func rayTriangle(hit *Hit, verts [3]V3, r Ray) bool {
+	// get normal, use 1st vert as 'root'. assume CCW winding
+	// (though i guess it doesnt really matter). then find intersection with
+	// plane of triangle.
+	a := verts[0]
+	b := verts[1]
+	c := verts[2]
+	ba := b.Sub(a)
+	ca := c.Sub(a)
+	normal := ba.Cross(ca).Normalize()
+
+	// ray-plane
+	denom := r.Dir.Dot(normal)
+	var t Float
+	if denom == 0 { // triangle and ray are perpendicular
+		return false
+	}
+	t = a.Sub(r.Orig).Dot(normal) / denom
+	if t < epsilon { // triange is behind ray
+		return false
+	}
+
+	// ray hit plane somewhere, and that is point p
+	p := r.Point(t)
+
+	// then use cross and dotproducts to determine
+	// if the point is within the triangle.
+	// already have B-A
+	cb := c.Sub(b)
+	ac := a.Sub(c)
+
+	// compare cross produts with triangle normal because the cross products
+	// were calculated in the same CCW direction as the normal
+	baCp := ba.Cross(p.Sub(a)).Dot(normal)
+	cbCp := cb.Cross(p.Sub(b)).Dot(normal)
+	acCp := ac.Cross(p.Sub(c)).Dot(normal)
+
+	if baCp >= 0 && cbCp >= 0 && acCp >= 0 {
+		// p in triangle
+		hit.Normal = normal
+		hit.Point = p
+		hit.T = t
+		return true
+	}
+
+	return false
+}

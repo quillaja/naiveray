@@ -70,7 +70,7 @@ func main() {
 		V3(camPosF), V3(lookF), V3(camUpF),
 		Float(math.Pi*(fov/180.0)), width, height)
 
-	geoms := Scene1()
+	geoms := Scene2()
 
 	// profiling
 	if *profF != "" {
@@ -135,10 +135,10 @@ func Scene1() []Geometry {
 
 		// back glowing ball
 		Sphere{
-			Center: V3{700, 300, -175},
+			Center: V3{500, 300, 300}, //orig z = -175
 			Radius: 80,
 			Mat: Material{
-				Emittance: V3{5, 5, 5}},
+				Emittance: V3{10, 10, 10}},
 		},
 
 		// front-of-camera wall (rear of scene)
@@ -167,9 +167,9 @@ func Scene1() []Geometry {
 			Normal: V3{0, 0, -1},
 			Mat: Material{
 				Reflectance: V3{1, 1, 1},
-				// Emittance:   V3{1, 1, 1},
-				Diffuse: 0.95,
-				Glossy:  0.05},
+				Emittance:   V3{0.8, 0.8, 0.8},
+				Diffuse:     0.95,
+				Glossy:      0.05},
 		},
 
 		// floor
@@ -178,7 +178,7 @@ func Scene1() []Geometry {
 			Normal: V3{0, 0, 1},
 			Mat: Material{
 				Reflectance: V3{1, 1, 1},
-				Diffuse:     1},
+				Diffuse:     0.95},
 		},
 
 		// left wall
@@ -205,12 +205,38 @@ func Scene1() []Geometry {
 
 func Scene2() []Geometry {
 	return []Geometry{
-		Sphere{
-			Center: V3{0, 0, 50},
-			Radius: 50,
+		// Sphere{
+		// 	Center: V3{0, 0, 50},
+		// 	Radius: 50,
+		// 	Mat: Material{
+		// 		Reflectance: V3{1, 1, 1},
+		// 		Eta:         1.5},
+		// },
+
+		// TriangleMesh{
+		// 	Verts: []V3{
+		// 		V3{0, 0, 100},
+		// 		V3{50, 50, 0},
+		// 		V3{-50, 50, 0},
+		// 		V3{-50, -50, 0},
+		// 		V3{50, -50, 0}},
+		// 	Index: []int{0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1, 1, 3, 2, 1, 4, 3},
+		// 	Mat: Material{
+		// 		Reflectance: V3{1, 0.8, 0.8},
+		// 		Diffuse:     0.8},
+		// },
+
+		TriangleMesh{
+			Verts: []V3{
+				V3{0, 0, 50},
+				V3{50, 50, 10},
+				V3{-50, 50, 10},
+				V3{-50, -50, 10},
+				V3{50, -50, 10}},
+			Index: []int{0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1},
 			Mat: Material{
-				Reflectance: V3{1, 1, 1},
-				Eta:         1.5},
+				Reflectance: V3{1, 0.5, 0.5},
+				Diffuse:     0.1},
 		},
 
 		Plane{
@@ -218,14 +244,14 @@ func Scene2() []Geometry {
 			Normal: V3{0, 0, 1},
 			Mat: Material{
 				Reflectance: V3{1, 1, 1},
-				Diffuse:     1},
+				Diffuse:     0.9},
 		},
 
 		Plane{
 			Point:  V3{0, 0, 500},
 			Normal: V3{0, 0, -1},
 			Mat: Material{
-				Emittance: V3{1.5, 1.5, 1.5}},
+				Emittance: V3{2, 2, 2}},
 		},
 	}
 }
