@@ -7,7 +7,6 @@ type Material struct {
 	Reflectance V3
 	Eta         Float
 	Diffuse     Float
-	Glossy      Float
 }
 
 func ColorToV3(col color.Color) V3 {

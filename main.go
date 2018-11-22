@@ -119,8 +119,7 @@ func Scene1() []Geometry {
 			Mat: Material{
 				Reflectance: V3{0.99, 0.99, 0.99},
 				Eta:         1.5,
-				Diffuse:     0,
-				Glossy:      0.95},
+				Diffuse:     0},
 		},
 
 		// low right ball
@@ -129,8 +128,7 @@ func Scene1() []Geometry {
 			Radius: 100,
 			Mat: Material{
 				Reflectance: V3{0.99, 0.99, 0.99},
-				Diffuse:     1,
-				Glossy:      1},
+				Diffuse:     1},
 		},
 
 		// mirror ball
@@ -156,8 +154,7 @@ func Scene1() []Geometry {
 			Normal: V3{-1, 0, 0},
 			Mat: Material{
 				Reflectance: V3{0.2, 0.2, 0.99},
-				Diffuse:     1,
-				Glossy:      0.05},
+				Diffuse:     1},
 		},
 
 		// behind camera wall
@@ -166,8 +163,7 @@ func Scene1() []Geometry {
 			Normal: V3{1, 0, 0},
 			Mat: Material{
 				Reflectance: V3{0.99, 0.2, 0.99},
-				Diffuse:     1,
-				Glossy:      0.05},
+				Diffuse:     1},
 		},
 
 		// ceiling
@@ -177,8 +173,7 @@ func Scene1() []Geometry {
 			Mat: Material{
 				Reflectance: V3{0.95, 0.95, 0.95},
 				// Emittance:   V3{1, 1, 1},
-				Diffuse: 1,
-				Glossy:  0.05},
+				Diffuse: 1},
 		},
 
 		// floor
@@ -196,8 +191,7 @@ func Scene1() []Geometry {
 			Normal: V3{0, -1, 0},
 			Mat: Material{
 				Reflectance: V3{0.2, 0.99, 0.2},
-				Diffuse:     1,
-				Glossy:      0.25},
+				Diffuse:     1},
 		},
 
 		// right wall
@@ -206,8 +200,7 @@ func Scene1() []Geometry {
 			Normal: V3{0, 1, 0},
 			Mat: Material{
 				Reflectance: V3{1, 0.2, 0.2},
-				Diffuse:     1,
-				Glossy:      0},
+				Diffuse:     1},
 		},
 	}
 }

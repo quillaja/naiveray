@@ -249,8 +249,7 @@ var ambient = Material{
 	Emittance:   V3{1, 1, 1},       // general environmental lighting ("sky")
 	Reflectance: V3{0.9, 0.9, 0.1}, // ref properties of "dust particles"
 	Eta:         1,                 // refraction coefficient of air (approx)
-	Diffuse:     0.0 / 100.0,       // % chance of scatter in 100 units distance
-	Glossy:      0}                 // meaningless in this context
+	Diffuse:     0.0 / 100.0}       // % chance of scatter in 100 units distance
 
 func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	if depth == 0 {
