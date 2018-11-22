@@ -157,7 +157,7 @@ func rayTriangle(hit *Hit, verts [3]V3, r Ray) bool {
 		return false
 	}
 	t = a.Sub(r.Orig).Dot(normal) / denom
-	if t < epsilon { // triange is behind ray
+	if t < epsilon { // triangle is behind ray
 		return false
 	}
 
@@ -170,12 +170,14 @@ func rayTriangle(hit *Hit, verts [3]V3, r Ray) bool {
 	cb := c.Sub(b)
 	ac := a.Sub(c)
 
-	// compare cross produts with triangle normal because the cross products
+	// compare cross products with triangle normal because the cross products
 	// were calculated in the same CCW direction as the normal
 	baCp := ba.Cross(p.Sub(a)).Dot(normal)
 	cbCp := cb.Cross(p.Sub(b)).Dot(normal)
 	acCp := ac.Cross(p.Sub(c)).Dot(normal)
 
+	// don't need to check if <0 because the normal is derived from b and c.
+	// therefore, the normal and cross products are always one the same 'side'
 	if baCp >= 0 && cbCp >= 0 && acCp >= 0 {
 		// p in triangle
 		hit.Normal = normal
