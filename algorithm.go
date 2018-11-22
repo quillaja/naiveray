@@ -16,7 +16,7 @@ var doneSignal = struct{}{}
 
 type RenderJob struct {
 	Bounds image.Rectangle
-	Params *RenderParams
+	Params RenderParams
 	Geoms  []Geometry
 	Cam    *Camera
 	Img    *image.RGBA
@@ -75,7 +75,7 @@ func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams)
 
 			job := RenderJob{
 				Bounds: image.Rect(x, y, x+chunkSize, y+chunkSize),
-				Params: &params,
+				Params: params,
 				Geoms:  scene,
 				Cam:    cam,
 				Img:    img}
@@ -177,6 +177,17 @@ func RandomBounceHemisphere(normal V3) V3 {
 	return rval
 }
 
+func randHemi(normal V3) V3 {
+	b := createBasis(normal)
+	z := rand.Float64()
+	r := math.Sqrt(1.0 - z*z)
+	theta := rand.Float64()*2*math.Pi - math.Pi
+	x, y := math.Sincos(theta)
+	x *= r
+	y *= r
+	return b[0].Mul(x).Add(b[1].Mul(y).Add(b[2].Mul(z)))
+}
+
 // RandomBounceSphere gets a
 func RandomBounceSphere() V3 {
 	return V3{
@@ -201,10 +212,37 @@ func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 	return
 }
 
-func grid(a, b V3) bool {
+func bullseye(a, b V3) bool {
 	c := b.Sub(a)
-	// x, y, z := int(c.X()), int(c.Y()), int(c.Z())
 	return int(c.Len())%100 == 0
+}
+
+func grid(plane Plane, point V3) bool {
+	// create new basis vectors in the plane
+	b := createBasis(plane.Normal)
+	x := b[0]
+	y := b[1]
+
+	// project point-plane.Point onto new x y axes
+	diff := point.Sub(plane.Point)
+	dx := diff.Dot(x) // x and y are normalized, so len=1
+	dy := diff.Dot(y)
+
+	return int(dx)%100 == 0 || int(dy)%100 == 0
+}
+
+func createBasis(direction V3) [3]V3 {
+	z := direction.Normalize()
+	var diff V3
+	if math.Abs(z.X()) < 0.5 {
+		diff = V3{1, 0, 0}
+	} else {
+		diff = V3{0, 1, 0}
+	}
+	x := z.Cross(diff).Normalize()
+	y := x.Cross(z)
+
+	return [3]V3{x, y, z}
 }
 
 var ambient = Material{
@@ -216,12 +254,12 @@ var ambient = Material{
 
 func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	if depth == 0 {
-		return ambient.Emittance
+		return V3{}
 	}
 
 	hit, foundHit := FindNearestHit(r, geoms)
 	if !foundHit {
-		return ambient.Emittance
+		return V3{}
 	}
 
 	// "haze"
@@ -240,51 +278,55 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 
 	// HACK grids onto planes
 	if plane, ok := hit.Geom.(Plane); ok {
-		if grid(plane.Point, hit.Point) {
-			return V3{0.1, 0.1, 0.1}
+		if grid(plane, hit.Point) {
+			return V3{}
+		}
+	}
+
+	// russian roulette
+	reflectance := mat.Reflectance
+	if depth < 1 {
+		max := Float(math.Max(math.Max(float64(reflectance.X()), float64(reflectance.Y())), float64(reflectance.Z())))
+		if Float(rand.Float64()) < max {
+			reflectance = reflectance.Mul(1 / max)
+		} else {
+			return mat.Emittance
 		}
 	}
 
 	newRay := Ray{Orig: hit.Point, Medium: r.Medium}
+	var incCol V3
 
 	// perform a pure specular reflection sometimes per Diffuse
-	// perform a weighted diffuse reflection per Glossy
-	newRay.Dir = ReflectionDir(r.Dir, hit.Normal)
 	if Float(rand.Float64()) < mat.Diffuse {
-		newRay.Dir = RandomBounceHemisphere(hit.Normal)
-	}
-	// else {
-	// 	newRay.Dir = lerp(
-	// 		RandomBounceHemisphere(hit.Normal),
-	// 		newRay.Dir,
-	// 		mat.Glossy).Normalize()
-	// }
-
-	if s, ok := hit.Geom.(Sphere); ok && s == geoms[0] { // do this only for the "glass" sphere
-		refracCoeff := 1 - Schlick(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
-		if Float(rand.Float64()) < refracCoeff {
-			if r.Dir.Dot(hit.Normal) < 0 {
-				// out-to-inside
-				newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
-				newRay.Medium = &mat
-			} else {
-				// in-to-outside
-				newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, ambient.Eta)
-				newRay.Medium = &ambient
+		newRay.Dir = randHemi(hit.Normal)
+		incCol = ShootRay(newRay, geoms, depth-1)
+	} else {
+		if s, ok := hit.Geom.(Sphere); ok && s == geoms[0] { // do this only for the "glass" sphere
+			// specular refraction
+			refracCoeff := 1 - Schlick(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
+			if Float(rand.Float64()) < refracCoeff {
+				if r.Dir.Dot(hit.Normal) < 0 {
+					// out-to-inside
+					newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
+					newRay.Medium = &mat
+				} else {
+					// in-to-outside
+					newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, ambient.Eta)
+					newRay.Medium = &ambient
+				}
+				// newRay.Orig = r.Point(hit.T + 0.0001)
 			}
-			// newRay.Orig = r.Point(hit.T + 0.0001)
+		} else {
+			// specular reflection
+			newRay.Dir = ReflectionDir(r.Dir, hit.Normal)
 		}
-	}
 
-	incCol := ShootRay(newRay, geoms, depth-1)
+		incCol = ShootRay(newRay, geoms, depth-1)
+	}
 
 	// rendering equation
-	cosTerm := Float(math.Abs(float64(newRay.Dir.Dot(hit.Normal))))
-	if cosTerm < 0.5 { // questionable?
-		cosTerm = 0.5
-	}
-
-	finalColor = hadamard(mat.Reflectance, incCol).Mul(cosTerm).Add(mat.Emittance)
+	finalColor = hadamard(reflectance, incCol).Add(mat.Emittance)
 
 	return
 }
