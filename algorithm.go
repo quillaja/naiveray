@@ -98,17 +98,18 @@ func RenderWorker(jobs JobQueue, prog Report) {
 }
 
 func RenderChunk(job RenderJob) {
+	rng := rand.New(rand.NewSource(int64(job.Img.Bounds().Min.X + job.Img.Bounds().Min.Y)))
 	imgBounds := job.Img.Bounds()
 	for r := job.Bounds.Min.Y; r < job.Bounds.Max.Y; r++ {
 		for c := job.Bounds.Min.X; c < job.Bounds.Max.X; c++ {
 			if isIn(c, r, imgBounds) {
 				color := V3{0, 0, 0}
 				for count := 0; count < job.Params.SamplesPerPix; count++ {
-					yJit := Float(rand.Float64())*2 - 1 // [-0.5, 0.5)
-					xJit := Float(rand.Float64())*2 - 1
+					yJit := Float(rng.Float64())*2 - 1 // [-0.5, 0.5)
+					xJit := Float(rng.Float64())*2 - 1
 					ray := job.Cam.GetRay(Float(c)+xJit, Float(r)+yJit)
 					ray.Medium = &ambient
-					sample := ShootRay(ray, job.Geoms, job.Params.MaxBounces)
+					sample := ShootRay(ray, job.Geoms, job.Params.MaxBounces, rng)
 					color = color.Add(sample)
 				}
 				job.Img.Set(c, r, V3ToColor(color.Mul(1/Float(job.Params.SamplesPerPix))))
@@ -177,11 +178,11 @@ func RandomBounceHemisphere(normal V3) V3 {
 	return rval
 }
 
-func randHemi(normal V3) V3 {
+func randHemi(normal V3, rng *rand.Rand) V3 {
 	b := createBasis(normal)
-	z := rand.Float64()
+	z := rng.Float64()
 	r := math.Sqrt(1.0 - z*z)
-	theta := rand.Float64()*2*math.Pi - math.Pi
+	theta := rng.Float64()*2*math.Pi - math.Pi
 	x, y := math.Sincos(theta)
 	x *= r
 	y *= r
@@ -251,7 +252,7 @@ var ambient = Material{
 	Eta:         1,                 // refraction coefficient of air (approx)
 	Diffuse:     0.0 / 100.0}       // % chance of scatter in 100 units distance
 
-func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
+func ShootRay(r Ray, geoms []Geometry, depth int, rng *rand.Rand) (finalColor V3) {
 	if depth == 0 {
 		return V3{}
 	}
@@ -271,40 +272,41 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 	// }
 
 	mat := hit.Geom.Material()
-	if mat.Emittance.Len() > 0 {
+	black := V3{}
+	if mat.Emittance != black {
 		return mat.Emittance // stop early for emitted
 	}
 
 	// HACK grids onto planes
 	if plane, ok := hit.Geom.(Plane); ok {
 		if grid(plane, hit.Point) {
-			return V3{}
+			return black
 		}
 	}
 
 	// russian roulette
 	reflectance := mat.Reflectance
-	if depth < 1 {
-		max := Float(math.Max(math.Max(float64(reflectance.X()), float64(reflectance.Y())), float64(reflectance.Z())))
-		if Float(rand.Float64()) < max {
-			reflectance = reflectance.Mul(1 / max)
-		} else {
-			return mat.Emittance
-		}
-	}
+	// if depth < 1 {
+	// 	max := Float(math.Max(math.Max(float64(reflectance.X()), float64(reflectance.Y())), float64(reflectance.Z())))
+	// 	if Float(rand.Float64()) < max {
+	// 		reflectance = reflectance.Mul(1 / max)
+	// 	} else {
+	// 		return mat.Emittance
+	// 	}
+	// }
 
 	newRay := Ray{Orig: hit.Point, Medium: r.Medium}
 	var incCol V3
 
 	// perform a pure specular reflection sometimes per Diffuse
-	if Float(rand.Float64()) < mat.Diffuse {
-		newRay.Dir = randHemi(hit.Normal)
-		incCol = ShootRay(newRay, geoms, depth-1)
+	if Float(rng.Float64()) < mat.Diffuse {
+		newRay.Dir = randHemi(hit.Normal, rng)
+		incCol = ShootRay(newRay, geoms, depth-1, rng)
 	} else {
 		if s, ok := hit.Geom.(Sphere); ok && s == geoms[0] { // do this only for the "glass" sphere
 			// specular refraction
 			refracCoeff := 1 - Schlick(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
-			if Float(rand.Float64()) < refracCoeff {
+			if Float(rng.Float64()) < refracCoeff {
 				if r.Dir.Dot(hit.Normal) < 0 {
 					// out-to-inside
 					newRay.Dir = RefractionDir(r.Dir, hit.Normal, r.Medium.Eta, mat.Eta)
@@ -321,7 +323,7 @@ func ShootRay(r Ray, geoms []Geometry, depth int) (finalColor V3) {
 			newRay.Dir = ReflectionDir(r.Dir, hit.Normal)
 		}
 
-		incCol = ShootRay(newRay, geoms, depth-1)
+		incCol = ShootRay(newRay, geoms, depth-1, rng)
 	}
 
 	// rendering equation

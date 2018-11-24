@@ -63,7 +63,6 @@ Took: 709.02 s
 Time/Sample: 0.00289 ms
 _Note: while running pprof_
 
-
 # Chunk size
 
 ## 640x480 32rays 
@@ -79,3 +78,13 @@ _Note: while running pprof_
 1. Took: 25.84 s - Time/Sample: 0.00263 ms
 ### 16x16 chunk (1200 chunks)
 1. Took: 28.28 s - Time/Sample: 0.00288 ms
+
+# New RNG per chunk (or per goroutine)
+
+## unsaved
+320 x 240 image, 256 samples per px
+Beginning render
+Render complete. Writing to output.png
+Took: 27.25 s
+**Time/Sample: 0.00139 ms**
+_Note: FINALLY got cpu usage to ~100% (from 50-60%) on each cpu. Don't share default pkg rand across multiple goroutines._
