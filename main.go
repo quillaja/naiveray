@@ -140,7 +140,7 @@ func Scene1() []Geometry {
 				Diffuse:     0},
 		},
 
-		// back glowing ball
+		// back glowing ball (or ceiling light)
 		Sphere{
 			Center: V3{500, 0, 550}, //orig z = -175
 			Radius: 200,
@@ -154,7 +154,7 @@ func Scene1() []Geometry {
 			Normal: V3{-1, 0, 0},
 			Mat: Material{
 				Reflectance: V3{0.2, 0.2, 0.99},
-				Diffuse:     1},
+				Diffuse:     0.98},
 		},
 
 		// behind camera wall
@@ -163,7 +163,7 @@ func Scene1() []Geometry {
 			Normal: V3{1, 0, 0},
 			Mat: Material{
 				Reflectance: V3{0.99, 0.2, 0.99},
-				Diffuse:     1},
+				Diffuse:     0.98},
 		},
 
 		// ceiling
@@ -173,7 +173,7 @@ func Scene1() []Geometry {
 			Mat: Material{
 				Reflectance: V3{0.95, 0.95, 0.95},
 				// Emittance:   V3{1, 1, 1},
-				Diffuse: 1},
+				Diffuse: 0.98},
 		},
 
 		// floor
@@ -182,7 +182,7 @@ func Scene1() []Geometry {
 			Normal: V3{0, 0, 1},
 			Mat: Material{
 				Reflectance: V3{0.95, 0.95, 0.95},
-				Diffuse:     1},
+				Diffuse:     0.98},
 		},
 
 		// left wall
@@ -191,7 +191,7 @@ func Scene1() []Geometry {
 			Normal: V3{0, -1, 0},
 			Mat: Material{
 				Reflectance: V3{0.2, 0.99, 0.2},
-				Diffuse:     1},
+				Diffuse:     0.98},
 		},
 
 		// right wall
@@ -200,7 +200,7 @@ func Scene1() []Geometry {
 			Normal: V3{0, 1, 0},
 			Mat: Material{
 				Reflectance: V3{1, 0.2, 0.2},
-				Diffuse:     1},
+				Diffuse:     0.98},
 		},
 	}
 }
