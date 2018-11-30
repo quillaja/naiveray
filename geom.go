@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"io"
 	"math"
+	"strconv"
+	"strings"
 )
 
 // Hit represents an intersection between a Ray and a Geometry.
@@ -187,4 +191,39 @@ func rayTriangle(hit *Hit, verts [3]V3, r Ray) bool {
 	}
 
 	return false
+}
+
+func TriangleMeshFromOBJ(r io.Reader) (t TriangleMesh) {
+
+	t.Verts = []V3{}
+	t.Index = []int{}
+
+	scan := bufio.NewScanner(r)
+
+	for scan.Scan() {
+		line := scan.Text()
+		parts := strings.Split(line, "  ")
+		switch parts[0] {
+		case "v":
+			v := V3{}
+			for i := 1; i < 4; i++ {
+				n, _ := strconv.ParseFloat(parts[i], 64)
+				v[i-1] = Float(n)
+			}
+			t.Verts = append(t.Verts, v)
+
+		case "f":
+			f := make([]int, 3)
+			for i := 1; i < 4; i++ {
+				n, _ := strconv.Atoi(strings.Split(parts[i], "/")[0])
+				f[i-1] = n - 1 // OBJ indices start at 1
+			}
+			t.Index = append(t.Index, f...)
+		}
+	}
+	if err := scan.Err(); err != nil {
+		panic(err)
+	}
+
+	return
 }

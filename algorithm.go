@@ -105,8 +105,8 @@ func RenderChunk(job RenderJob) {
 			if isIn(c, r, imgBounds) {
 				color := V3{0, 0, 0}
 				for count := 0; count < job.Params.SamplesPerPix; count++ {
-					yJit := Float(rng.Float64())*2 - 1 // [-0.5, 0.5)
-					xJit := Float(rng.Float64())*2 - 1
+					yJit := Float(rng.Float64()) //*2 - 1 // [-0.5, 0.5)
+					xJit := Float(rng.Float64()) //*2 - 1
 					ray := job.Cam.GetRay(Float(c)+xJit, Float(r)+yJit)
 					ray.Medium = &ambient
 					sample := ShootRay(ray, job.Geoms, 0, job.Params.MaxBounces, rng)
@@ -215,14 +215,14 @@ func ShootRay(r Ray, geoms []Geometry, depth, maxDepth int, rng *rand.Rand) (fin
 
 	// russian roulette
 	reflectance := mat.Reflectance
-	if depth > maxDepth/2 {
-		max := Float(math.Max(math.Max(float64(reflectance.X()), float64(reflectance.Y())), float64(reflectance.Z())))
-		if Float(rand.Float64()) < max {
-			reflectance = reflectance.Mul(1 / max)
-		} else {
-			return mat.Emittance // ? just from smallrt
-		}
-	}
+	// if depth > maxDepth/2 {
+	// 	max := Float(math.Max(math.Max(float64(reflectance.X()), float64(reflectance.Y())), float64(reflectance.Z())))
+	// 	if Float(rand.Float64()) < max {
+	// 		reflectance = reflectance.Mul(1 / max)
+	// 	} else {
+	// 		return mat.Emittance // ? just from smallrt
+	// 	}
+	// }
 
 	newRay := Ray{Orig: hit.Point, Medium: r.Medium}
 	var incCol V3
@@ -256,7 +256,7 @@ func ShootRay(r Ray, geoms []Geometry, depth, maxDepth int, rng *rand.Rand) (fin
 	}
 
 	// rendering equation
-	finalColor = hadamard(reflectance, incCol).Add(mat.Emittance)
+	finalColor = hadamard(reflectance, incCol) //.Mul(abscos(hit.Normal, r.Dir)).Add(mat.Emittance)
 
 	return
 }
@@ -267,4 +267,8 @@ func lerp(v0, v1 V3, t Float) V3 {
 
 func hadamard(a, b V3) V3 {
 	return V3{a.X() * b.X(), a.Y() * b.Y(), a.Z() * b.Z()}
+}
+
+func abscos(a, b V3) Float {
+	return Float(math.Abs(float64(a.Dot(b))))
 }

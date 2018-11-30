@@ -66,11 +66,11 @@ func randSphere(rng *rand.Rand) V3 {
 }
 
 // RandomBounceHemisphere gets a
-func RandomBounceHemisphere(normal V3) V3 {
+func RandomBounceHemisphere(normal V3, rng *rand.Rand) V3 {
 	rval := V3{
-		Float(rand.Float64())*2 - 1,
-		Float(rand.Float64())*2 - 1,
-		Float(rand.Float64())*2 - 1}.Normalize()
+		Float(rng.Float64())*2 - 1,
+		Float(rng.Float64())*2 - 1,
+		Float(rng.Float64())*2 - 1}.Normalize()
 
 	if normal.Dot(rval) < 0 {
 		rval = rval.Mul(-1)
@@ -80,9 +80,9 @@ func RandomBounceHemisphere(normal V3) V3 {
 }
 
 // RandomBounceSphere gets a
-func RandomBounceSphere() V3 {
+func RandomBounceSphere(rng *rand.Rand) V3 {
 	return V3{
-		Float(rand.Float64())*2 - 1,
-		Float(rand.Float64())*2 - 1,
-		Float(rand.Float64())*2 - 1}.Normalize()
+		Float(rng.Float64())*2 - 1,
+		Float(rng.Float64())*2 - 1,
+		Float(rng.Float64())*2 - 1}.Normalize()
 }

@@ -48,6 +48,7 @@ func main() {
 	chunkSizeF := flag.Int("chunk", 32, "square chunk size for render chunk")
 	outputF := flag.String("out", "output.png", "output file name (PNG)")
 	profF := flag.String("profile", "", "filename for cpu profile output")
+	sceneF := flag.String("scene", "1", "scene number")
 
 	fovF := flag.Float64("fov", 115.0, "field of view in degrees of widest part")
 	camPosF := VecFlag(V3{-100, 0, 0})
@@ -70,7 +71,15 @@ func main() {
 		V3(camPosF), V3(lookF), V3(camUpF),
 		Float(math.Pi*(fov/180.0)), width, height)
 
-	geoms := Scene1()
+	var geoms []Geometry
+	switch *sceneF {
+	case "1":
+		geoms = Scene1()
+	case "2":
+		geoms = Scene2()
+	case "3":
+		geoms = Scene3()
+	}
 
 	// profiling
 	if *profF != "" {
@@ -247,6 +256,38 @@ func Scene2() []Geometry {
 			Mat: Material{
 				Reflectance: V3{1, 1, 1},
 				Diffuse:     1},
+		},
+
+		Plane{
+			Point:  V3{0, 0, 500},
+			Normal: V3{0, 0, -1},
+			Mat: Material{
+				Emittance: V3{1.5, 1.5, 1.5}},
+		},
+	}
+}
+
+func Scene3() []Geometry {
+	f, err := os.Open("teapot.obj")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	teapot := TriangleMeshFromOBJ(f)
+	teapot.Mat = Material{
+		Reflectance: V3{0.8, 0.85, 0.95},
+		Diffuse:     0.0}
+
+	return []Geometry{
+		teapot,
+
+		Plane{
+			Point:  V3{0, 0, -500},
+			Normal: V3{0, 0, 1},
+			Mat: Material{
+				Reflectance: V3{0.8, 0.8, 0.8},
+				Diffuse:     1.0},
 		},
 
 		Plane{
