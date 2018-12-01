@@ -35,6 +35,7 @@ func DefaultRenderParams() RenderParams {
 		ChunkSize:     32}
 }
 
+// Render manages the goroutine job-based rendering system.
 func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams) {
 
 	chunkSize := params.ChunkSize
@@ -90,6 +91,7 @@ func Render(scene []Geometry, cam *Camera, img *image.RGBA, params RenderParams)
 	close(progress)
 }
 
+// RenderWorker gets jobs and processes them.
 func RenderWorker(jobs JobQueue, prog Report) {
 	for job := range jobs {
 		RenderChunk(job)
@@ -97,6 +99,8 @@ func RenderWorker(jobs JobQueue, prog Report) {
 	}
 }
 
+// RenderChunk performs the main rendering task, sampling each pixel of the
+// chunk a certain number of times and writing the result to the final image.
 func RenderChunk(job RenderJob) {
 	rng := rand.New(rand.NewSource(int64(job.Img.Bounds().Min.X + job.Img.Bounds().Min.Y)))
 	imgBounds := job.Img.Bounds()
@@ -125,6 +129,8 @@ func isIn(c, r int, bound image.Rectangle) bool {
 
 ///////////////////////////////////////////////////////////////
 
+// FindNearestHit intersects the ray with all geoms and returns the nearest
+// hit, if any.
 func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 	minT := Float(math.Inf(1))
 	h := Hit{}
@@ -141,11 +147,15 @@ func FindNearestHit(r Ray, geoms []Geometry) (min Hit, foundHit bool) {
 	return
 }
 
+// bullseye figures out if point is 100 units away from center, radially,
+// allowing a sort of bullseye pattern to be made.
 func bullseye(center, point V3) bool {
 	c := point.Sub(center)
 	return int(c.Len())%100 == 0
 }
 
+// grid figures out if the point is 100x units away from the plane "center"
+// in X or Y, allowing a sort of grid to be made.
 func grid(plane Plane, point V3) bool {
 	// create new basis vectors in the plane
 	b := createBasis(plane.Normal)
@@ -160,6 +170,7 @@ func grid(plane Plane, point V3) bool {
 	return int(dx)%100 == 0 || int(dy)%100 == 0
 }
 
+// createBasis creates a basis coordinate system using direction.
 func createBasis(direction V3) [3]V3 {
 	z := direction.Normalize()
 	var diff V3
@@ -182,6 +193,7 @@ var ambient = Material{
 
 var black = V3{}
 
+// ShootRay recursively samples in the Ray r direction and produces a color value.
 func ShootRay(r Ray, geoms []Geometry, depth, maxDepth int, rng *rand.Rand) (finalColor V3) {
 	if depth == maxDepth {
 		return black
@@ -216,6 +228,8 @@ func ShootRay(r Ray, geoms []Geometry, depth, maxDepth int, rng *rand.Rand) (fin
 	// russian roulette
 	reflectance := mat.Reflectance
 	// if depth > maxDepth/2 {
+	// 	// given termination probability Q (should be low), accept by 1-Q
+	//	// and weight by 1/(1-Q). here, max = 1-Q.
 	// 	max := Float(math.Max(math.Max(float64(reflectance.X()), float64(reflectance.Y())), float64(reflectance.Z())))
 	// 	if Float(rand.Float64()) < max {
 	// 		reflectance = reflectance.Mul(1 / max)

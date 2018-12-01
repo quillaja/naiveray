@@ -193,6 +193,8 @@ func rayTriangle(hit *Hit, verts [3]V3, r Ray) bool {
 	return false
 }
 
+// TriangleMeshFromOBJ parses limited info about verticies "v" and
+// faces "f" from an OBJ file to produce a TrangleMesh.
 func TriangleMeshFromOBJ(r io.Reader) (t TriangleMesh) {
 
 	t.Verts = []V3{}
