@@ -260,6 +260,9 @@ func ShootRay(r Ray, geoms []Geometry, depth, maxDepth int, rng *rand.Rand) (fin
 					newRay.Medium = &ambient
 				}
 				// newRay.Orig = r.Point(hit.T + 0.0001)
+			} else {
+				// specilar reflection if not refraction
+				newRay.Dir = ReflectionDir(r.Dir, hit.Normal)
 			}
 		} else {
 			// specular reflection
